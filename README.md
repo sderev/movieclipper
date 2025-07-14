@@ -119,7 +119,7 @@ The script includes intelligent caching that makes it extremely fast:
 
 ## Configuration
 
-Settings are stored in `clip_movie.toml`:
+Settings are stored in `~/.config/movieclipper/clip_movie.toml`:
 ```toml
 [directories]
 movies_dir = "/path/to/your/movies"

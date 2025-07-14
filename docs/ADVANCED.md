@@ -345,17 +345,17 @@ uv run clip_movie.py --cache-info
 uv run clip_movie.py --clear-cache
 
 # Disable cache for debugging
-# Edit clip_movie.toml: cache_enabled = false
+# Edit ~/.config/movieclipper/clip_movie.toml: cache_enabled = false
 ```
 
 #### Configuration Debugging
 
 ```bash
 # View current configuration
-cat clip_movie.toml
+cat ~/.config/movieclipper/clip_movie.toml
 
 # Reset configuration
-rm clip_movie.toml
+rm ~/.config/movieclipper/clip_movie.toml
 uv run clip_movie.py --setup
 ```
 
@@ -424,7 +424,7 @@ chmod 700 ~/.cache/movie_clipper
 uv run clip_movie.py --clear-cache
 
 # Disable cache temporarily
-# Edit clip_movie.toml: cache_enabled = false
+# Edit ~/.config/movieclipper/clip_movie.toml: cache_enabled = false
 ```
 
 ### Symlink Issues
@@ -441,7 +441,7 @@ find ~/movies -xtype l -delete
 
 ```bash
 # Disable cache for debugging
-# Edit clip_movie.toml: cache_enabled = false
+# Edit ~/.config/movieclipper/clip_movie.toml: cache_enabled = false
 
 # Check disk space
 df -h /path/to/clips

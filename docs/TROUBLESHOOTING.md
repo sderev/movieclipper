@@ -91,12 +91,12 @@ chown user:group /path/to/your/movies
 **Solutions:**
 ```bash
 # Reset configuration
-rm clip_movie.toml
+rm ~/.config/movieclipper/clip_movie.toml
 uv run clip_movie.py --setup
 
 # Check file permissions
-ls -la clip_movie.toml
-chmod 644 clip_movie.toml
+ls -la ~/.config/movieclipper/clip_movie.toml
+chmod 644 ~/.config/movieclipper/clip_movie.toml
 ```
 
 ## Movie Discovery Issues
@@ -146,7 +146,7 @@ uv run clip_movie.py --clear-cache
 **Solutions:**
 ```bash
 # Check symlink configuration
-cat clip_movie.toml
+cat ~/.config/movieclipper/clip_movie.toml
 # Should show: follow_symlinks = true
 
 # Verify symlinks
@@ -261,7 +261,7 @@ uv run clip_movie.py --cache-info
 uv run clip_movie.py --clear-cache
 
 # Disable cache temporarily
-# Edit clip_movie.toml: cache_enabled = false
+# Edit ~/.config/movieclipper/clip_movie.toml: cache_enabled = false
 
 # Check cache directory permissions
 ls -la ~/.cache/movie_clipper/
@@ -276,7 +276,7 @@ chmod 755 ~/.cache/movie_clipper/
 uv run clip_movie.py --clear-cache
 
 # Check cache TTL setting
-cat clip_movie.toml
+cat ~/.config/movieclipper/clip_movie.toml
 # Default: cache_ttl_hours = 24
 
 # Force cache rebuild
@@ -450,7 +450,7 @@ When seeking help, include:
 - **FFmpeg version** (`ffmpeg -version`)
 - **Python version** (`python --version`)
 - **File information** (movie file format, size)
-- **Configuration** (`cat clip_movie.toml`)
+- **Configuration** (`cat ~/.config/movieclipper/clip_movie.toml`)
 
 ### Community Resources
 
@@ -471,7 +471,7 @@ killall ffmpeg
 uv run clip_movie.py --clear-cache
 
 # 3. Reset configuration
-rm clip_movie.toml
+rm ~/.config/movieclipper/clip_movie.toml
 uv run clip_movie.py --setup
 
 # 4. Test basic functionality

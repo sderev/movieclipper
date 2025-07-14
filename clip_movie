@@ -101,7 +101,8 @@ config: Optional[Config] = None
 
 def get_config_path() -> Path:
     """Get the path to the configuration file"""
-    return Path(__file__).parent / "clip_movie.toml"
+    config_dir = Path.home() / ".config" / "movieclipper"
+    return config_dir / "clip_movie.toml"
 
 def load_config() -> Config:
     """Load configuration from file or create default"""
@@ -193,6 +194,9 @@ def setup_config() -> Config:
 def save_config(config: Config):
     """Save configuration to file"""
     config_path = get_config_path()
+    
+    # Create the configuration directory if it doesn't exist
+    config_path.parent.mkdir(parents=True, exist_ok=True)
     
     config_data = {
         "directories": {

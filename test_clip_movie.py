@@ -43,7 +43,7 @@ def temp_dir():
 @pytest.fixture
 def mock_config_dir(temp_dir):
     """Create a mock configuration directory."""
-    config_dir = temp_dir / ".config" / "movie_clipper"
+    config_dir = temp_dir / ".config" / "movieclipper"
     config_dir.mkdir(parents=True)
     return config_dir
 

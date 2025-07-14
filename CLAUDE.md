@@ -59,7 +59,7 @@ git merge feature/new-audio-options
 - `.gitignore` - Git ignore rules
 
 ### Files to Ignore
-- `clip_movie.toml` - User configuration (contains local paths)
+- `~/.config/movieclipper/clip_movie.toml` - User configuration (contains local paths)
 - `clips_testing/` - Test output directory
 - `2025/clips/` - Generated clips
 - Movie files (*.mkv, *.mp4, etc.) - Too large for git
@@ -94,7 +94,7 @@ uv run clip_movie.py "Iron Man" --test -s 15:35 -d 12
 ```
 
 ### Configuration
-- Configuration stored in `clip_movie.toml` (auto-generated)
+- Configuration stored in `~/.config/movieclipper/clip_movie.toml` (auto-generated)
 - Supports directory customization
 - Audio preferences and settings
 - Symlink handling options

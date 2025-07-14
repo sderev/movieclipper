@@ -279,7 +279,7 @@ The script intelligently maps audio streams:
 
 ### Custom Audio Configuration
 
-Edit `clip_movie.toml` for advanced settings:
+Edit `~/.config/movieclipper/clip_movie.toml` for advanced settings:
 
 ```toml
 [settings]

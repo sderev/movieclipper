@@ -138,7 +138,7 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 
 ### File Location
 
-- **Default**: `clip_movie.toml` in script directory
+- **Default**: `~/.config/movieclipper/clip_movie.toml`
 - **Format**: TOML (Tom's Obvious, Minimal Language)
 
 ### Configuration Structure

@@ -76,7 +76,7 @@ The setup wizard will ask you to configure:
 
 ```bash
 # Check your configuration
-cat clip_movie.toml
+cat ~/.config/movieclipper/clip_movie.toml
 
 # Test with a sample movie
 uv run clip_movie.py "test movie" --help
@@ -89,7 +89,6 @@ After installation, your project should look like this:
 ```
 movie-clipper/
 ├── clip_movie.py           # Main script
-├── clip_movie.toml         # Configuration (created after setup)
 ├── docs/                   # Documentation (optional)
 └── your-movies/            # Your configured movies directory
     ├── movie1.mkv
@@ -103,7 +102,7 @@ movie-clipper/
 
 ### Basic Configuration
 
-The setup wizard creates a `clip_movie.toml` file with your settings:
+The setup wizard creates a `~/.config/movieclipper/clip_movie.toml` file with your settings:
 
 ```toml
 [directories]
@@ -131,7 +130,7 @@ For advanced users, you can manually edit the configuration:
 
 ```bash
 # Edit configuration file
-nano clip_movie.toml
+nano ~/.config/movieclipper/clip_movie.toml
 
 # Reconfigure interactively
 uv run clip_movie.py --setup
@@ -189,7 +188,7 @@ ls -la /path/to/your/movies
 ls -la /path/to/your/movies
 
 # Check configuration
-cat clip_movie.toml
+cat ~/.config/movieclipper/clip_movie.toml
 
 # Reconfigure if needed
 uv run clip_movie.py --setup
