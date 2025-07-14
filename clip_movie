@@ -27,6 +27,7 @@ import shutil
 import json
 import time
 import os
+from datetime import datetime
 
 import click
 import toml
@@ -136,8 +137,9 @@ def setup_config() -> Config:
     
     # Get current directory as default
     current_dir = Path.cwd()
-    default_movies = current_dir / "2025" / "download"
-    default_clips = current_dir / "2025" / "clips"
+    current_year = str(datetime.now().year)
+    default_movies = current_dir / current_year / "download"
+    default_clips = current_dir / current_year / "clips"
     
     # Movies directory
     movies_dir_str = Prompt.ask(
