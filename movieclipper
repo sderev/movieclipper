@@ -14,7 +14,7 @@
 """
 Movie Clipper Script
 
-A tool to automate video clipping from movies using ffmpeg with DaVinci Resolve compatibility.
+A tool to automate video clipping from movies using ffmpeg.
 Supports fuzzy movie title matching, flexible time input, and automatic configuration management.
 """
 
@@ -741,7 +741,7 @@ def execute_ffmpeg(command: List[str]) -> bool:
 @click.option('--clear-cache', is_flag=True, help='Clear movie index cache')
 @click.option('--cache-info', is_flag=True, help='Show cache information')
 def main(movie_input: Optional[str], start: Optional[str], duration: Optional[str], test: bool, setup: bool, preserve_audio: bool, audio_lang: Optional[str], stereo: bool, clear_cache: bool, cache_info: bool):
-    """Movie clipping tool with fuzzy matching and DaVinci Resolve compatibility"""
+    """Movie clipping tool with fuzzy matching"""
     
     # Handle setup flag
     if setup:
