@@ -21,24 +21,29 @@ sudo apt install ffmpeg
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/movie-clipper.git
+git clone https://github.com/sderev/movie-clipper.git
 cd movie-clipper
 
+# Add `movieclipper` to your PATH
+echo 'export PATH="$PATH:$(pwd)/bin"' >> ~/.bashrc # or ~/.zshrc
+source ~/.bashrc # or ~/.zshrc
+# Or use your usual method to add to PATH
+
 # First-time setup
-uv run movieclipper --setup
+movieclipper --setup
 ```
 
 ### Basic Usage
 
 ```bash
 # Create a clip (English stereo)
-uv run movieclipper "Mickey 17" -s 15:35 -d 12
+movieclipper "Mickey 17" -s 15:35 -d 12
 
 # Interactive mode
-uv run movieclipper "A Complete Unknown"
+movieclipper "A Complete Unknown"
 
 # Testing mode
-uv run movieclipper "Bleeder" --test -s 1:23:45 -d 30
+movieclipper "Bleeder" --test -s 1:23:45 -d 30
 ```
 
 ## Key Features
@@ -54,14 +59,14 @@ uv run movieclipper "Bleeder" --test -s 1:23:45 -d 30
 
 ```bash
 # Standard usage
-uv run movieclipper "Movie Title" -s 1:23:45 -d 30
+movieclipper "Movie Title" -s 1:23:45 -d 30
 
 # Different language
-uv run movieclipper "Movie Title" --audio-lang fre -s 1:23:45 -d 30
+movieclipper "Movie Title" --audio-lang fre -s 1:23:45 -d 30
 
 # Cache management
-uv run movieclipper --cache-info
-uv run movieclipper --clear-cache
+movieclipper --cache-info
+movieclipper --clear-cache
 ```
 
 ## Documentation
@@ -86,28 +91,28 @@ uv run movieclipper --clear-cache
 ### Finding Movies
 ```bash
 # All these work with fuzzy matching
-uv run movieclipper "iron man" -s 15:35 -d 12
-uv run movieclipper "Iron Man" -s 15:35 -d 12
-uv run movieclipper "ironman" -s 15:35 -d 12
+movieclipper "iron man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "ironman" -s 15:35 -d 12
 ```
 
 ### Time Formats
 ```bash
-uv run movieclipper "Skyfall" -s 1:23:45 -d 30    # HH:MM:SS
-uv run movieclipper "Skyfall" -s 23:45 -d 30      # MM:SS
-uv run movieclipper "Skyfall" -s 1425 -d 30       # Seconds
+movieclipper "Skyfall" -s 1:23:45 -d 30    # HH:MM:SS
+movieclipper "Skyfall" -s 23:45 -d 30      # MM:SS
+movieclipper "Skyfall" -s 1425 -d 30       # Seconds
 ```
 
 ### Audio Options
 ```bash
 # Default: English stereo (recommended)
-uv run movieclipper "Movie" -s 1:23:45 -d 30
+movieclipper "Movie" -s 1:23:45 -d 30
 
 # Specific language
-uv run movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30
 
 # Keep all audio tracks
-uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30
+movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30
 ```
 
 ## Performance
