@@ -17,7 +17,7 @@ This test suite covers all major components of the movie clipper:
 - FFmpeg command generation
 - CLI interface and user interaction
 
-Run with: uv run test_clip_movie.py
+Run with: uv run test_movieclipper.py
 """
 
 import pytest
@@ -106,7 +106,7 @@ class TestConfiguration:
     def test_default_config_creation(self, mock_config_dir):
         """Test that default configuration is created on first run."""
         # Mock the config class - assuming it exists in the main script
-        # This would import from the actual clip_movie module
+        # This would import from the actual movieclipper module
         config_file = mock_config_dir / "config.json"
         
         default_config = {
@@ -592,7 +592,7 @@ class TestCLI:
         """Test command line argument parsing."""
         # Test basic arguments
         basic_args = [
-            "clip_movie.py",
+            "movieclipper",
             "--movie", "iron man",
             "--start", "01:23:45",
             "--duration", "00:01:00"

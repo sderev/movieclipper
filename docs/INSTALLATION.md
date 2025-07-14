@@ -43,20 +43,20 @@ git clone https://github.com/yourusername/movie-clipper.git
 cd movie-clipper
 
 # Verify installation
-uv run clip_movie.py --help
+uv run movieclipper --help
 ```
 
 ### Option 2: Download Script Only
 
 ```bash
 # Download the main script
-curl -O https://raw.githubusercontent.com/yourusername/movie-clipper/main/clip_movie.py
+curl -O https://raw.githubusercontent.com/yourusername/movie-clipper/main/movieclipper
 
 # Make it executable
-chmod +x clip_movie.py
+chmod +x movieclipper
 
 # Test installation
-uv run clip_movie.py --help
+uv run movieclipper --help
 ```
 
 ## First-Time Setup
@@ -65,7 +65,7 @@ uv run clip_movie.py --help
 
 ```bash
 # Interactive configuration setup
-uv run clip_movie.py --setup
+uv run movieclipper --setup
 ```
 
 The setup wizard will ask you to configure:
@@ -76,10 +76,10 @@ The setup wizard will ask you to configure:
 
 ```bash
 # Check your configuration
-cat ~/.config/movieclipper/clip_movie.toml
+cat ~/.config/movieclipper/movieclipper.toml
 
 # Test with a sample movie
-uv run clip_movie.py "test movie" --help
+uv run movieclipper "test movie" --help
 ```
 
 ## Directory Structure
@@ -88,7 +88,7 @@ After installation, your project should look like this:
 
 ```
 movie-clipper/
-├── clip_movie.py           # Main script
+├── movieclipper           # Main script
 ├── docs/                   # Documentation (optional)
 └── your-movies/            # Your configured movies directory
     ├── movie1.mkv
@@ -102,7 +102,7 @@ movie-clipper/
 
 ### Basic Configuration
 
-The setup wizard creates a `~/.config/movieclipper/clip_movie.toml` file with your settings:
+The setup wizard creates a `~/.config/movieclipper/movieclipper.toml` file with your settings:
 
 ```toml
 [directories]
@@ -130,10 +130,10 @@ For advanced users, you can manually edit the configuration:
 
 ```bash
 # Edit configuration file
-nano ~/.config/movieclipper/clip_movie.toml
+nano ~/.config/movieclipper/movieclipper.toml
 
 # Reconfigure interactively
-uv run clip_movie.py --setup
+uv run movieclipper --setup
 ```
 
 ## Verification
@@ -142,7 +142,7 @@ uv run clip_movie.py --setup
 
 ```bash
 # Test with a real movie file
-uv run clip_movie.py "your movie title" --test -s 1:00:00 -d 10
+uv run movieclipper "your movie title" --test -s 1:00:00 -d 10
 
 # This should create a 10-second clip in clips_testing/
 ```
@@ -151,10 +151,10 @@ uv run clip_movie.py "your movie title" --test -s 1:00:00 -d 10
 
 ```bash
 # Check cache information
-uv run clip_movie.py --cache-info
+uv run movieclipper --cache-info
 
 # Clear cache if needed
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 ```
 
 ## Common Setup Issues
@@ -188,10 +188,10 @@ ls -la /path/to/your/movies
 ls -la /path/to/your/movies
 
 # Check configuration
-cat ~/.config/movieclipper/clip_movie.toml
+cat ~/.config/movieclipper/movieclipper.toml
 
 # Reconfigure if needed
-uv run clip_movie.py --setup
+uv run movieclipper --setup
 ```
 
 ## External Storage Setup
@@ -233,7 +233,7 @@ If you encounter issues during installation:
 
 1. Check the [Troubleshooting Guide](TROUBLESHOOTING.md)
 2. Verify all prerequisites are installed
-3. Run `uv run clip_movie.py --help` for available options
+3. Run `uv run movieclipper --help` for available options
 4. Check the [GitHub Issues](https://github.com/yourusername/movie-clipper/issues) for known problems
 
 ---

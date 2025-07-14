@@ -5,7 +5,7 @@
 ### Basic Syntax
 
 ```bash
-uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
+uv run movieclipper [OPTIONS] [MOVIE_INPUT]
 ```
 
 ### Arguments
@@ -32,9 +32,9 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
   - `SECONDS` - Pure seconds (e.g., `1425`)
 - **Examples**:
   ```bash
-  uv run clip_movie.py "Movie" -s 1:23:45 -d 30
-  uv run clip_movie.py "Movie" -s 23:45 -d 30
-  uv run clip_movie.py "Movie" -s 1425 -d 30
+  uv run movieclipper "Movie" -s 1:23:45 -d 30
+  uv run movieclipper "Movie" -s 23:45 -d 30
+  uv run movieclipper "Movie" -s 1425 -d 30
   ```
 
 ##### --duration, -d
@@ -43,8 +43,8 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 - **Formats**: Same as `--start`
 - **Examples**:
   ```bash
-  uv run clip_movie.py "Movie" -s 1:23:45 -d 0:00:30
-  uv run clip_movie.py "Movie" -s 1:23:45 -d 30
+  uv run movieclipper "Movie" -s 1:23:45 -d 0:00:30
+  uv run movieclipper "Movie" -s 1:23:45 -d 30
   ```
 
 #### Audio Options
@@ -55,7 +55,7 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 - **Default**: False (smart audio selection)
 - **Examples**:
   ```bash
-  uv run clip_movie.py "Movie" --preserve-audio -s 1:23:45 -d 30
+  uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30
   ```
 
 ##### --audio-lang
@@ -73,8 +73,8 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
   - `rus` - Russian
 - **Examples**:
   ```bash
-  uv run clip_movie.py "Movie" --audio-lang fre -s 1:23:45 -d 30
-  uv run clip_movie.py "Movie" --audio-lang chi -s 1:23:45 -d 30
+  uv run movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30
+  uv run movieclipper "Movie" --audio-lang chi -s 1:23:45 -d 30
   ```
 
 ##### --stereo/--no-stereo
@@ -83,8 +83,8 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 - **Default**: `--stereo` (mix to stereo)
 - **Examples**:
   ```bash
-  uv run clip_movie.py "Movie" --stereo -s 1:23:45 -d 30      # Force stereo
-  uv run clip_movie.py "Movie" --no-stereo -s 1:23:45 -d 30   # Keep original channels
+  uv run movieclipper "Movie" --stereo -s 1:23:45 -d 30      # Force stereo
+  uv run movieclipper "Movie" --no-stereo -s 1:23:45 -d 30   # Keep original channels
   ```
 
 #### Operational Options
@@ -95,7 +95,7 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 - **Default**: False (use clips directory)
 - **Examples**:
   ```bash
-  uv run clip_movie.py "Movie" --test -s 1:23:45 -d 30
+  uv run movieclipper "Movie" --test -s 1:23:45 -d 30
   ```
 
 ##### --setup
@@ -103,7 +103,7 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 - **Description**: Run interactive configuration setup
 - **Examples**:
   ```bash
-  uv run clip_movie.py --setup
+  uv run movieclipper --setup
   ```
 
 #### Cache Options
@@ -113,7 +113,7 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 - **Description**: Clear movie index cache
 - **Examples**:
   ```bash
-  uv run clip_movie.py --clear-cache
+  uv run movieclipper --clear-cache
   ```
 
 ##### --cache-info
@@ -121,7 +121,7 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 - **Description**: Show cache information
 - **Examples**:
   ```bash
-  uv run clip_movie.py --cache-info
+  uv run movieclipper --cache-info
   ```
 
 #### Help Option
@@ -131,14 +131,14 @@ uv run clip_movie.py [OPTIONS] [MOVIE_INPUT]
 - **Description**: Show help message and exit
 - **Examples**:
   ```bash
-  uv run clip_movie.py --help
+  uv run movieclipper --help
   ```
 
 ## Configuration File Reference
 
 ### File Location
 
-- **Default**: `~/.config/movieclipper/clip_movie.toml`
+- **Default**: `~/.config/movieclipper/movieclipper.toml`
 - **Format**: TOML (Tom's Obvious, Minimal Language)
 
 ### Configuration Structure
@@ -443,7 +443,7 @@ ffmpeg -y -ss {start_time} -i {input_file} -t {duration} -c:v copy {audio_option
 ### Script Version
 Check script header for version information:
 ```bash
-head -20 clip_movie.py | grep -i version
+head -20 movieclipper | grep -i version
 ```
 
 ### Dependencies

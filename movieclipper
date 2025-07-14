@@ -103,7 +103,7 @@ config: Optional[Config] = None
 def get_config_path() -> Path:
     """Get the path to the configuration file"""
     config_dir = Path.home() / ".config" / "movieclipper"
-    return config_dir / "clip_movie.toml"
+    return config_dir / "movieclipper.toml"
 
 def get_old_config_path() -> Path:
     """Get the path to the old configuration file (for migration)"""
@@ -118,8 +118,18 @@ def migrate_config_if_needed() -> bool:
     if new_config_path.exists():
         return False
     
-    # If old config doesn't exist, no migration needed
-    if not old_config_path.exists():
+    # Check for old config in new location with old filename
+    old_config_new_location = new_config_path.parent / "clip_movie.toml"
+    
+    # Try to find old config files in order of preference
+    config_to_migrate = None
+    if old_config_new_location.exists():
+        config_to_migrate = old_config_new_location
+    elif old_config_path.exists():
+        config_to_migrate = old_config_path
+    
+    # If no old config found, no migration needed
+    if config_to_migrate is None:
         return False
     
     # Migrate old config to new location
@@ -129,9 +139,9 @@ def migrate_config_if_needed() -> bool:
         
         # Copy old config to new location
         import shutil
-        shutil.copy2(old_config_path, new_config_path)
+        shutil.copy2(config_to_migrate, new_config_path)
         
-        console.print(f"[green]✓ Migrated configuration from {old_config_path} to {new_config_path}[/green]")
+        console.print(f"[green]✓ Migrated configuration from {config_to_migrate} to {new_config_path}[/green]")
         console.print("[yellow]You can safely delete the old config file if desired.[/yellow]")
         return True
     except Exception as e:
@@ -805,7 +815,7 @@ def main(movie_input: Optional[str], start: Optional[str], duration: Optional[st
     # Check if movie_input is provided
     if not movie_input:
         console.print("[red]Error: Movie input is required (unless using --setup)[/red]")
-        console.print("Usage: clip_movie.py MOVIE_INPUT [OPTIONS]")
+        console.print("Usage: movieclipper MOVIE_INPUT [OPTIONS]")
         sys.exit(1)
     
     # Check ffmpeg availability

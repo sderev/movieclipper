@@ -50,7 +50,7 @@ python --version
 
 # UV automatically manages Python versions
 # Script requires Python 3.9+
-uv run clip_movie.py --help
+uv run movieclipper --help
 ```
 
 ## Configuration Issues
@@ -62,7 +62,7 @@ uv run clip_movie.py --help
 **Solutions:**
 ```bash
 # Reconfigure directories
-uv run clip_movie.py --setup
+uv run movieclipper --setup
 
 # Manually check directory
 ls -la /path/to/your/movies
@@ -91,12 +91,12 @@ chown user:group /path/to/your/movies
 **Solutions:**
 ```bash
 # Reset configuration
-rm ~/.config/movieclipper/clip_movie.toml
-uv run clip_movie.py --setup
+rm ~/.config/movieclipper/movieclipper.toml
+uv run movieclipper --setup
 
 # Check file permissions
-ls -la ~/.config/movieclipper/clip_movie.toml
-chmod 644 ~/.config/movieclipper/clip_movie.toml
+ls -la ~/.config/movieclipper/movieclipper.toml
+chmod 644 ~/.config/movieclipper/movieclipper.toml
 ```
 
 ## Movie Discovery Issues
@@ -117,7 +117,7 @@ ls -la /path/to/your/movies
 find /path/to/your/movies -name "*.mkv" -o -name "*.mp4"
 
 # Reconfigure movies directory
-uv run clip_movie.py --setup
+uv run movieclipper --setup
 ```
 
 ### Movie Not Found
@@ -127,16 +127,16 @@ uv run clip_movie.py --setup
 **Solutions:**
 ```bash
 # Use more specific search terms
-uv run clip_movie.py "Iron Man 2008" -s 15:35 -d 12
+uv run movieclipper "Iron Man 2008" -s 15:35 -d 12
 
 # Use partial matching
-uv run clip_movie.py "iron" -s 15:35 -d 12
+uv run movieclipper "iron" -s 15:35 -d 12
 
 # Check available movies
 ls /path/to/your/movies
 
 # Clear cache if movies were recently added
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 ```
 
 ### Symlink Issues
@@ -146,7 +146,7 @@ uv run clip_movie.py --clear-cache
 **Solutions:**
 ```bash
 # Check symlink configuration
-cat ~/.config/movieclipper/clip_movie.toml
+cat ~/.config/movieclipper/movieclipper.toml
 # Should show: follow_symlinks = true
 
 # Verify symlinks
@@ -175,7 +175,7 @@ find /path/to/your/movies -xtype l -delete
 ffprobe -i "path/to/movie.mkv"
 
 # Test with different movie
-uv run clip_movie.py "different movie" -s 1:00:00 -d 10
+uv run movieclipper "different movie" -s 1:00:00 -d 10
 ```
 
 ### Wrong Audio Language
@@ -185,7 +185,7 @@ uv run clip_movie.py "different movie" -s 1:00:00 -d 10
 **Solutions:**
 ```bash
 # Specify language explicitly
-uv run clip_movie.py "Movie" --audio-lang eng -s 1:23:45 -d 30
+uv run movieclipper "Movie" --audio-lang eng -s 1:23:45 -d 30
 
 # Common language codes
 # eng = English, fre = French, spa = Spanish, ger = German
@@ -194,7 +194,7 @@ uv run clip_movie.py "Movie" --audio-lang eng -s 1:23:45 -d 30
 ffprobe -i "path/to/movie.mkv" 2>&1 | grep "Audio"
 
 # Use preserve-audio to see all streams
-uv run clip_movie.py "Movie" --preserve-audio --test -s 1:23:45 -d 5
+uv run movieclipper "Movie" --preserve-audio --test -s 1:23:45 -d 5
 ```
 
 ### DaVinci Resolve Audio Issues
@@ -204,10 +204,10 @@ uv run clip_movie.py "Movie" --preserve-audio --test -s 1:23:45 -d 5
 **Solutions:**
 ```bash
 # Make sure NOT using --preserve-audio
-uv run clip_movie.py "Movie" -s 1:23:45 -d 30  # Correct
+uv run movieclipper "Movie" -s 1:23:45 -d 30  # Correct
 
 # Force stereo explicitly
-uv run clip_movie.py "Movie" --stereo -s 1:23:45 -d 30
+uv run movieclipper "Movie" --stereo -s 1:23:45 -d 30
 
 # Check output file
 ffprobe -i "output_clip.mp4" 2>&1 | grep "Audio"
@@ -218,10 +218,10 @@ ffprobe -i "output_clip.mp4" 2>&1 | grep "Audio"
 **Solutions:**
 ```bash
 # Try different timestamp
-uv run clip_movie.py "Movie" -s 1:00:00 -d 30
+uv run movieclipper "Movie" -s 1:00:00 -d 30
 
 # Use --no-stereo for original channels
-uv run clip_movie.py "Movie" --no-stereo -s 1:23:45 -d 30
+uv run movieclipper "Movie" --no-stereo -s 1:23:45 -d 30
 
 # Check source file integrity
 ffmpeg -v error -i "source.mkv" -f null -
@@ -236,7 +236,7 @@ ffmpeg -v error -i "source.mkv" -f null -
 **Solutions:**
 ```bash
 # Check cache status
-uv run clip_movie.py --cache-info
+uv run movieclipper --cache-info
 
 # Cache might be building - wait for completion
 # First run with large movie collection is slow
@@ -245,7 +245,7 @@ uv run clip_movie.py --cache-info
 df -h ~/.cache/movie_clipper/
 
 # Clear cache if corrupted
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 ```
 
 ### Cache Issues
@@ -255,13 +255,13 @@ uv run clip_movie.py --clear-cache
 **Solutions:**
 ```bash
 # View cache information
-uv run clip_movie.py --cache-info
+uv run movieclipper --cache-info
 
 # Clear and rebuild cache
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 
 # Disable cache temporarily
-# Edit ~/.config/movieclipper/clip_movie.toml: cache_enabled = false
+# Edit ~/.config/movieclipper/movieclipper.toml: cache_enabled = false
 
 # Check cache directory permissions
 ls -la ~/.cache/movie_clipper/
@@ -273,15 +273,15 @@ chmod 755 ~/.cache/movie_clipper/
 **Solutions:**
 ```bash
 # Cache might be stale
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 
 # Check cache TTL setting
-cat ~/.config/movieclipper/clip_movie.toml
+cat ~/.config/movieclipper/movieclipper.toml
 # Default: cache_ttl_hours = 24
 
 # Force cache rebuild
-uv run clip_movie.py --clear-cache
-uv run clip_movie.py "new movie" -s 1:00:00 -d 10
+uv run movieclipper --clear-cache
+uv run movieclipper "new movie" -s 1:00:00 -d 10
 ```
 
 ## FFmpeg Issues
@@ -296,10 +296,10 @@ uv run clip_movie.py "new movie" -s 1:00:00 -d 10
 ffmpeg -i "path/to/movie.mkv"
 
 # Test with different timestamp
-uv run clip_movie.py "Movie" -s 0:30:00 -d 10
+uv run movieclipper "Movie" -s 0:30:00 -d 10
 
 # Try testing mode first
-uv run clip_movie.py "Movie" --test -s 1:23:45 -d 5
+uv run movieclipper "Movie" --test -s 1:23:45 -d 5
 
 # Check disk space
 df -h /path/to/clips/
@@ -312,9 +312,9 @@ df -h /path/to/clips/
 **Solutions:**
 ```bash
 # Use correct time formats
-uv run clip_movie.py "Movie" -s 1:23:45 -d 30      # HH:MM:SS
-uv run clip_movie.py "Movie" -s 23:45 -d 30        # MM:SS
-uv run clip_movie.py "Movie" -s 1425 -d 30         # Seconds
+uv run movieclipper "Movie" -s 1:23:45 -d 30      # HH:MM:SS
+uv run movieclipper "Movie" -s 23:45 -d 30        # MM:SS
+uv run movieclipper "Movie" -s 1425 -d 30         # Seconds
 
 # Common mistakes to avoid
 # Wrong: 1.23.45 (uses dots)
@@ -336,7 +336,7 @@ chmod 755 /path/to/clips/
 df -h /path/to/clips/
 
 # Try testing mode
-uv run clip_movie.py "Movie" --test -s 1:23:45 -d 30
+uv run movieclipper "Movie" --test -s 1:23:45 -d 30
 
 # Check for existing file
 ls -la /path/to/clips/MovieName_*
@@ -394,7 +394,7 @@ ls -la /path/to/movies/NASMovies
 ```bash
 # Enable verbose output
 export MOVIE_CLIPPER_VERBOSE=1
-uv run clip_movie.py "Movie" -s 1:23:45 -d 30
+uv run movieclipper "Movie" -s 1:23:45 -d 30
 
 # Check FFmpeg command
 # Script shows exact command before execution
@@ -418,7 +418,7 @@ iotop -a
 
 ```bash
 # 1. Test with simple case
-uv run clip_movie.py "Movie" --test -s 1:00:00 -d 5
+uv run movieclipper "Movie" --test -s 1:00:00 -d 5
 
 # 2. Check output
 ls -la clips_testing/
@@ -428,7 +428,7 @@ ffprobe -i clips_testing/output.mp4
 # Import clip and verify audio/video
 
 # 4. Scale up to full workflow
-uv run clip_movie.py "Movie" -s 1:23:45 -d 30
+uv run movieclipper "Movie" -s 1:23:45 -d 30
 ```
 
 ## Getting Help
@@ -450,7 +450,7 @@ When seeking help, include:
 - **FFmpeg version** (`ffmpeg -version`)
 - **Python version** (`python --version`)
 - **File information** (movie file format, size)
-- **Configuration** (`cat ~/.config/movieclipper/clip_movie.toml`)
+- **Configuration** (`cat ~/.config/movieclipper/movieclipper.toml`)
 
 ### Community Resources
 
@@ -468,14 +468,14 @@ When seeking help, include:
 killall ffmpeg
 
 # 2. Clear cache
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 
 # 3. Reset configuration
-rm ~/.config/movieclipper/clip_movie.toml
-uv run clip_movie.py --setup
+rm ~/.config/movieclipper/movieclipper.toml
+uv run movieclipper --setup
 
 # 4. Test basic functionality
-uv run clip_movie.py "test movie" --test -s 1:00:00 -d 5
+uv run movieclipper "test movie" --test -s 1:00:00 -d 5
 ```
 
 ### Recover from Corruption
@@ -486,13 +486,13 @@ fsck /dev/sda1  # Adjust device as needed
 
 # 2. Clear all caches
 rm -rf ~/.cache/movie_clipper/
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 
 # 3. Verify movie files
 find /path/to/movies -name "*.mkv" -exec ffprobe {} \;
 
 # 4. Rebuild from scratch
-uv run clip_movie.py --setup
+uv run movieclipper --setup
 ```
 
 ---

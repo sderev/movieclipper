@@ -10,14 +10,14 @@ The Movie Clipper includes a sophisticated caching system that dramatically impr
 
 **First Run:**
 ```bash
-uv run clip_movie.py "Iron Man" -s 15:35 -d 12
+uv run movieclipper "Iron Man" -s 15:35 -d 12
 # Building movie index cache...
 # Found 150 movies in cache
 ```
 
 **Subsequent Runs:**
 ```bash
-uv run clip_movie.py "Thor" -s 1:23:45 -d 30
+uv run movieclipper "Thor" -s 1:23:45 -d 30
 # Using cached movie index
 ```
 
@@ -33,7 +33,7 @@ uv run clip_movie.py "Thor" -s 1:23:45 -d 30
 #### View Cache Information
 
 ```bash
-uv run clip_movie.py --cache-info
+uv run movieclipper --cache-info
 ```
 
 **Sample Output:**
@@ -50,11 +50,11 @@ Cache Information:
 
 ```bash
 # Clear cache manually
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 # Movie index cache cleared
 
 # Next run will rebuild cache
-uv run clip_movie.py "Movie" -s 1:23:45 -d 30
+uv run movieclipper "Movie" -s 1:23:45 -d 30
 # Building movie index cache...
 ```
 
@@ -205,10 +205,10 @@ The script validates configuration on startup:
 
 ```bash
 # Reconfigure interactively
-uv run clip_movie.py --setup
+uv run movieclipper --setup
 
 # Test configuration
-uv run clip_movie.py --help
+uv run movieclipper --help
 ```
 
 ## FFmpeg Integration
@@ -274,9 +274,9 @@ The script handles various FFmpeg errors:
 
 ```bash
 # Create multiple clips efficiently
-uv run clip_movie.py "Iron Man" -s 15:35 -d 12
-uv run clip_movie.py "Iron Man" -s 45:20 -d 8
-uv run clip_movie.py "Iron Man" -s 1:23:45 -d 25
+uv run movieclipper "Iron Man" -s 15:35 -d 12
+uv run movieclipper "Iron Man" -s 45:20 -d 8
+uv run movieclipper "Iron Man" -s 1:23:45 -d 25
 ```
 
 ### Scripted Workflows
@@ -294,7 +294,7 @@ CLIPS=(
 
 for clip in "${CLIPS[@]}"; do
     read -r start duration <<< "$clip"
-    uv run clip_movie.py "$MOVIE" -s "$start" -d "$duration"
+    uv run movieclipper "$MOVIE" -s "$start" -d "$duration"
 done
 ```
 
@@ -304,7 +304,7 @@ done
 # Test all clips first
 for clip in "${CLIPS[@]}"; do
     read -r start duration <<< "$clip"
-    uv run clip_movie.py "$MOVIE" --test -s "$start" -d "$duration"
+    uv run movieclipper "$MOVIE" --test -s "$start" -d "$duration"
 done
 
 # Then create final clips
@@ -317,14 +317,14 @@ done
 
 ```bash
 # Enable verbose ffmpeg output
-MOVIE_CLIPPER_VERBOSE=1 uv run clip_movie.py "Movie" -s 1:23:45 -d 30
+MOVIE_CLIPPER_VERBOSE=1 uv run movieclipper "Movie" -s 1:23:45 -d 30
 ```
 
 ### Testing Mode
 
 ```bash
 # Use testing directory for safe experimentation
-uv run clip_movie.py "Movie" --test -s 1:23:45 -d 30
+uv run movieclipper "Movie" --test -s 1:23:45 -d 30
 ```
 
 **Testing Benefits:**
@@ -339,24 +339,24 @@ uv run clip_movie.py "Movie" --test -s 1:23:45 -d 30
 
 ```bash
 # View cache details
-uv run clip_movie.py --cache-info
+uv run movieclipper --cache-info
 
 # Clear cache for fresh start
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 
 # Disable cache for debugging
-# Edit ~/.config/movieclipper/clip_movie.toml: cache_enabled = false
+# Edit ~/.config/movieclipper/movieclipper.toml: cache_enabled = false
 ```
 
 #### Configuration Debugging
 
 ```bash
 # View current configuration
-cat ~/.config/movieclipper/clip_movie.toml
+cat ~/.config/movieclipper/movieclipper.toml
 
 # Reset configuration
-rm ~/.config/movieclipper/clip_movie.toml
-uv run clip_movie.py --setup
+rm ~/.config/movieclipper/movieclipper.toml
+uv run movieclipper --setup
 ```
 
 ## Advanced Workflows
@@ -365,9 +365,9 @@ uv run clip_movie.py --setup
 
 ```bash
 # Create clips with different audio configurations
-uv run clip_movie.py "Movie" --audio-lang eng -s 1:23:45 -d 30  # English
-uv run clip_movie.py "Movie" --audio-lang fre -s 1:23:45 -d 30  # French
-uv run clip_movie.py "Movie" --preserve-audio -s 1:23:45 -d 30  # All tracks
+uv run movieclipper "Movie" --audio-lang eng -s 1:23:45 -d 30  # English
+uv run movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30  # French
+uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30  # All tracks
 ```
 
 ### Multi-Language Projects
@@ -376,7 +376,7 @@ uv run clip_movie.py "Movie" --preserve-audio -s 1:23:45 -d 30  # All tracks
 # Create language-specific clips
 LANGUAGES=("eng" "fre" "spa" "ger")
 for lang in "${LANGUAGES[@]}"; do
-    uv run clip_movie.py "Movie" --audio-lang "$lang" -s 1:23:45 -d 30
+    uv run movieclipper "Movie" --audio-lang "$lang" -s 1:23:45 -d 30
 done
 ```
 
@@ -384,11 +384,11 @@ done
 
 ```bash
 # Create test clips first
-uv run clip_movie.py "Movie" --test -s 1:23:45 -d 5
+uv run movieclipper "Movie" --test -s 1:23:45 -d 5
 
 # Verify in DaVinci Resolve
 # Then create full clips
-uv run clip_movie.py "Movie" -s 1:23:45 -d 30
+uv run movieclipper "Movie" -s 1:23:45 -d 30
 ```
 
 ## Security and Permissions
@@ -421,10 +421,10 @@ chmod 700 ~/.cache/movie_clipper
 
 ```bash
 # Clear corrupted cache
-uv run clip_movie.py --clear-cache
+uv run movieclipper --clear-cache
 
 # Disable cache temporarily
-# Edit ~/.config/movieclipper/clip_movie.toml: cache_enabled = false
+# Edit ~/.config/movieclipper/movieclipper.toml: cache_enabled = false
 ```
 
 ### Symlink Issues
@@ -441,7 +441,7 @@ find ~/movies -xtype l -delete
 
 ```bash
 # Disable cache for debugging
-# Edit ~/.config/movieclipper/clip_movie.toml: cache_enabled = false
+# Edit ~/.config/movieclipper/movieclipper.toml: cache_enabled = false
 
 # Check disk space
 df -h /path/to/clips

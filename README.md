@@ -25,20 +25,20 @@ git clone https://github.com/yourusername/movie-clipper.git
 cd movie-clipper
 
 # First-time setup
-uv run clip_movie.py --setup
+uv run movieclipper --setup
 ```
 
 ### Basic Usage
 
 ```bash
 # Create a clip (English stereo)
-uv run clip_movie.py "Mickey 17" -s 15:35 -d 12
+uv run movieclipper "Mickey 17" -s 15:35 -d 12
 
 # Interactive mode
-uv run clip_movie.py "A Complete Unknown"
+uv run movieclipper "A Complete Unknown"
 
 # Testing mode
-uv run clip_movie.py "Bleeder" --test -s 1:23:45 -d 30
+uv run movieclipper "Bleeder" --test -s 1:23:45 -d 30
 ```
 
 ## Key Features
@@ -54,14 +54,14 @@ uv run clip_movie.py "Bleeder" --test -s 1:23:45 -d 30
 
 ```bash
 # Standard usage
-uv run clip_movie.py "Movie Title" -s 1:23:45 -d 30
+uv run movieclipper "Movie Title" -s 1:23:45 -d 30
 
 # Different language
-uv run clip_movie.py "Movie Title" --audio-lang fre -s 1:23:45 -d 30
+uv run movieclipper "Movie Title" --audio-lang fre -s 1:23:45 -d 30
 
 # Cache management
-uv run clip_movie.py --cache-info
-uv run clip_movie.py --clear-cache
+uv run movieclipper --cache-info
+uv run movieclipper --clear-cache
 ```
 
 ## Documentation
@@ -86,28 +86,28 @@ uv run clip_movie.py --clear-cache
 ### Finding Movies
 ```bash
 # All these work with fuzzy matching
-uv run clip_movie.py "iron man" -s 15:35 -d 12
-uv run clip_movie.py "Iron Man" -s 15:35 -d 12
-uv run clip_movie.py "ironman" -s 15:35 -d 12
+uv run movieclipper "iron man" -s 15:35 -d 12
+uv run movieclipper "Iron Man" -s 15:35 -d 12
+uv run movieclipper "ironman" -s 15:35 -d 12
 ```
 
 ### Time Formats
 ```bash
-uv run clip_movie.py "Skyfall" -s 1:23:45 -d 30    # HH:MM:SS
-uv run clip_movie.py "Skyfall" -s 23:45 -d 30      # MM:SS
-uv run clip_movie.py "Skyfall" -s 1425 -d 30       # Seconds
+uv run movieclipper "Skyfall" -s 1:23:45 -d 30    # HH:MM:SS
+uv run movieclipper "Skyfall" -s 23:45 -d 30      # MM:SS
+uv run movieclipper "Skyfall" -s 1425 -d 30       # Seconds
 ```
 
 ### Audio Options
 ```bash
 # Default: English stereo (recommended)
-uv run clip_movie.py "Movie" -s 1:23:45 -d 30
+uv run movieclipper "Movie" -s 1:23:45 -d 30
 
 # Specific language
-uv run clip_movie.py "Movie" --audio-lang fre -s 1:23:45 -d 30
+uv run movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30
 
 # Keep all audio tracks
-uv run clip_movie.py "Movie" --preserve-audio -s 1:23:45 -d 30
+uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30
 ```
 
 ## Performance
@@ -119,7 +119,7 @@ The script includes intelligent caching that makes it extremely fast:
 
 ## Configuration
 
-Settings are stored in `~/.config/movieclipper/clip_movie.toml`:
+Settings are stored in `~/.config/movieclipper/movieclipper.toml`:
 ```toml
 [directories]
 movies_dir = "/path/to/your/movies"

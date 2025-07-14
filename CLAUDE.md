@@ -33,7 +33,7 @@ This project uses git for version control. Always make commits when making signi
 git switch -c feature/new-audio-options
 
 # Make changes and commit
-git add clip_movie.py
+git add movieclipper
 git commit -m "feat: add smart audio stream selection
 
 - Add English preference with fallback to first stream
@@ -51,15 +51,15 @@ git merge feature/new-audio-options
 ```
 
 ### Files to Track
-- `clip_movie.py` - Main script
-- `test_clip_movie.py` - Test suite
+- `movieclipper` - Main script
+- `test_movieclipper.py` - Test suite
 - `README.md` - Documentation
 - `TODO.md` - Project management
 - `CLAUDE.md` - This file
 - `.gitignore` - Git ignore rules
 
 ### Files to Ignore
-- `~/.config/movieclipper/clip_movie.toml` - User configuration (contains local paths)
+- `~/.config/movieclipper/movieclipper.toml` - User configuration (contains local paths)
 - `clips_testing/` - Test output directory
 - `<year>/clips/` - Generated clips (year directories are dynamic)
 - Movie files (*.mkv, *.mp4, etc.) - Too large for git
@@ -67,7 +67,7 @@ git merge feature/new-audio-options
 
 ## Movie Clipper Script
 
-The main automation script is `clip_movie.py` which provides:
+The main automation script is `movieclipper` which provides:
 
 ### Key Features
 - **Fuzzy movie matching**: Find movies by partial titles ("iron man" → "Iron.Man.2008.Multi.VF.1080p.Bluray.x264-BDHD.mkv")
@@ -81,20 +81,20 @@ The main automation script is `clip_movie.py` which provides:
 ### Usage Examples
 ```bash
 # Basic usage (English stereo by default)
-uv run clip_movie.py "Iron Man" -s 15:35 -d 12
+uv run movieclipper "Iron Man" -s 15:35 -d 12
 
 # Keep all audio tracks (original behavior)
-uv run clip_movie.py "Iron Man" --preserve-audio -s 15:35 -d 12
+uv run movieclipper "Iron Man" --preserve-audio -s 15:35 -d 12
 
 # Select specific language
-uv run clip_movie.py "Iron Man" --audio-lang fre -s 15:35 -d 12
+uv run movieclipper "Iron Man" --audio-lang fre -s 15:35 -d 12
 
 # Testing mode
-uv run clip_movie.py "Iron Man" --test -s 15:35 -d 12
+uv run movieclipper "Iron Man" --test -s 15:35 -d 12
 ```
 
 ### Configuration
-- Configuration stored in `~/.config/movieclipper/clip_movie.toml` (auto-generated)
+- Configuration stored in `~/.config/movieclipper/movieclipper.toml` (auto-generated)
 - Supports directory customization
 - Audio preferences and settings
 - Symlink handling options
