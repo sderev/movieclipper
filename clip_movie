@@ -1,0 +1,836 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "click>=8.0.0",
+#     "fuzzywuzzy>=0.18.0",
+#     "python-Levenshtein>=0.12.0",
+#     "rich>=13.0.0",
+#     "pydantic>=1.10.0",
+#     "toml>=0.10.0",
+# ]
+# ///
+
+"""
+Movie Clipper Script
+
+A tool to automate video clipping from movies using ffmpeg with DaVinci Resolve compatibility.
+Supports fuzzy movie title matching, flexible time input, and automatic configuration management.
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+from typing import List, Optional, Tuple, Dict, Any
+import re
+import shutil
+import json
+import time
+import os
+
+import click
+import toml
+from fuzzywuzzy import fuzz, process
+from pydantic import BaseModel, field_validator, ValidationError
+from rich.console import Console
+from rich.prompt import Prompt, Confirm
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.panel import Panel
+from rich.text import Text
+
+console = Console()
+
+# Configuration Models
+class DirectoryConfig(BaseModel):
+    """Configuration for movie and clip directories"""
+    movies_dir: Path
+    clips_dir: Path
+    
+    @field_validator('movies_dir', 'clips_dir')
+    @classmethod
+    def validate_directory(cls, v):
+        """Validate that directories exist"""
+        if not v.exists():
+            raise ValueError(f"Directory does not exist: {v}")
+        if not v.is_dir():
+            raise ValueError(f"Path is not a directory: {v}")
+        return v
+    
+    @field_validator('movies_dir')
+    @classmethod
+    def validate_movies_dir_readable(cls, v):
+        """Validate that movies directory is readable"""
+        if not v.exists():
+            raise ValueError(f"Movies directory does not exist: {v}")
+        return v
+    
+    @field_validator('clips_dir')
+    @classmethod
+    def validate_clips_dir_writable(cls, v):
+        """Validate that clips directory is writable"""
+        if not v.exists():
+            try:
+                v.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                raise ValueError(f"Cannot create clips directory: {e}")
+        return v
+
+class Settings(BaseModel):
+    """Application settings"""
+    default_audio_codec: str = "pcm_s16le"
+    default_sample_rate: int = 48000
+    default_audio_channels: int = 2  # Mix to stereo by default
+    default_audio_language: str = "eng"  # Prefer English
+    preserve_all_audio: bool = False  # Lossless mode off by default
+    preview_by_default: bool = False
+    follow_symlinks: bool = True  # Follow symbolic links when searching for movies
+    video_extensions: List[str] = [".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm"]
+    # Cache settings
+    cache_enabled: bool = True  # Enable movie index caching
+    cache_ttl_hours: int = 24  # Cache time-to-live in hours
+    cache_location: Optional[str] = None  # Custom cache location (defaults to ~/.cache/movie_clipper/)
+
+class Config(BaseModel):
+    """Main configuration model"""
+    directories: DirectoryConfig
+    settings: Settings = Settings()
+
+# Global config instance
+config: Optional[Config] = None
+
+def get_config_path() -> Path:
+    """Get the path to the configuration file"""
+    return Path(__file__).parent / "clip_movie.toml"
+
+def load_config() -> Config:
+    """Load configuration from file or create default"""
+    global config
+    if config is not None:
+        return config
+    
+    config_path = get_config_path()
+    
+    if not config_path.exists():
+        config = setup_config()
+    else:
+        try:
+            with open(config_path, 'r') as f:
+                config_data = toml.load(f)
+            config = Config(**config_data)
+        except (ValidationError, FileNotFoundError, toml.TomlDecodeError) as e:
+            console.print(f"[red]Error loading config: {e}[/red]")
+            console.print("[yellow]Running setup again...[/yellow]")
+            config = setup_config()
+    
+    return config
+
+def setup_config() -> Config:
+    """Interactive configuration setup"""
+    console.print(Panel.fit(
+        "[bold blue]🎬 Movie Clipper Setup[/bold blue]\n\n"
+        "Let's configure your directories for movie clipping!",
+        style="blue"
+    ))
+    
+    # Get current directory as default
+    current_dir = Path.cwd()
+    default_movies = current_dir / "2025" / "download"
+    default_clips = current_dir / "2025" / "clips"
+    
+    # Movies directory
+    movies_dir_str = Prompt.ask(
+        "📁 Where are your movie files located?",
+        default=str(default_movies)
+    )
+    movies_dir = Path(movies_dir_str).expanduser().resolve()
+    
+    # Validate movies directory exists
+    if not movies_dir.exists():
+        create_movies = Confirm.ask(
+            f"Movies directory doesn't exist. Create {movies_dir}?",
+            default=False
+        )
+        if create_movies:
+            movies_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            console.print("[red]Movies directory is required. Setup cancelled.[/red]")
+            sys.exit(1)
+    
+    # Clips directory
+    clips_dir_str = Prompt.ask(
+        "📂 Where should clips be saved?",
+        default=str(default_clips)
+    )
+    clips_dir = Path(clips_dir_str).expanduser().resolve()
+    
+    # Create clips directory if it doesn't exist
+    if not clips_dir.exists():
+        clips_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create configuration
+    try:
+        config = Config(
+            directories=DirectoryConfig(
+                movies_dir=movies_dir,
+                clips_dir=clips_dir
+            )
+        )
+        
+        # Save configuration
+        save_config(config)
+        
+        console.print("[green]✅ Configuration saved successfully![/green]")
+        console.print(f"Movies directory: {movies_dir}")
+        console.print(f"Clips directory: {clips_dir}")
+        
+        return config
+    
+    except ValidationError as e:
+        console.print(f"[red]Configuration error: {e}[/red]")
+        sys.exit(1)
+
+def save_config(config: Config):
+    """Save configuration to file"""
+    config_path = get_config_path()
+    
+    config_data = {
+        "directories": {
+            "movies_dir": str(config.directories.movies_dir),
+            "clips_dir": str(config.directories.clips_dir)
+        },
+        "settings": {
+            "default_audio_codec": config.settings.default_audio_codec,
+            "default_sample_rate": config.settings.default_sample_rate,
+            "default_audio_channels": config.settings.default_audio_channels,
+            "default_audio_language": config.settings.default_audio_language,
+            "preserve_all_audio": config.settings.preserve_all_audio,
+            "preview_by_default": config.settings.preview_by_default,
+            "follow_symlinks": config.settings.follow_symlinks,
+            "video_extensions": config.settings.video_extensions,
+            "cache_enabled": config.settings.cache_enabled,
+            "cache_ttl_hours": config.settings.cache_ttl_hours,
+            "cache_location": config.settings.cache_location
+        }
+    }
+    
+    with open(config_path, 'w') as f:
+        toml.dump(config_data, f)
+
+# Cache Management Functions
+def get_cache_path(config: Optional[Config] = None) -> Path:
+    """Get the path to the movie index cache file"""
+    if config is None:
+        config = load_config()
+    
+    if config.settings.cache_location:
+        cache_dir = Path(config.settings.cache_location).expanduser()
+    else:
+        # Default to ~/.cache/movie_clipper/
+        cache_dir = Path.home() / ".cache" / "movie_clipper"
+    
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / "movie_index.json"
+
+def load_movie_cache() -> Optional[Dict[str, Any]]:
+    """Load movie index cache from file"""
+    cache_path = get_cache_path()
+    
+    if not cache_path.exists():
+        return None
+    
+    try:
+        with open(cache_path, 'r') as f:
+            cache_data = json.load(f)
+        return cache_data
+    except (json.JSONDecodeError, FileNotFoundError, OSError):
+        return None
+
+def save_movie_cache(cache_data: Dict[str, Any], config: Optional[Config] = None):
+    """Save movie index cache to file"""
+    cache_path = get_cache_path(config)
+    
+    try:
+        with open(cache_path, 'w') as f:
+            json.dump(cache_data, f, indent=2)
+    except (OSError, IOError) as e:
+        console.print(f"[yellow]Warning: Could not save cache: {e}[/yellow]")
+
+def is_cache_valid(cache_data: Dict[str, Any], movies_dir: Path, config: Config) -> bool:
+    """Check if cached movie index is still valid"""
+    if not cache_data:
+        return False
+    
+    # Check cache structure
+    if not all(key in cache_data for key in ['timestamp', 'movies_dir', 'movies']):
+        return False
+    
+    # Check if movies directory has changed
+    if cache_data['movies_dir'] != str(movies_dir):
+        return False
+    
+    # Check cache age
+    cache_age_hours = (time.time() - cache_data['timestamp']) / 3600
+    if cache_age_hours > config.settings.cache_ttl_hours:
+        return False
+    
+    # Check if movies directory was modified after cache creation
+    try:
+        movies_dir_mtime = movies_dir.stat().st_mtime
+        if movies_dir_mtime > cache_data['timestamp']:
+            return False
+    except OSError:
+        return False
+    
+    return True
+
+def build_movie_cache(movies_dir: Path, extensions: List[str], follow_symlinks: bool) -> Dict[str, Any]:
+    """Build movie index cache by scanning directory"""
+    console.print("[blue]Building movie index cache...[/blue]")
+    
+    movie_files = []
+    
+    # Use the existing find_movie_files logic but capture more metadata
+    try:
+        # Try Python 3.10+ approach first
+        for ext in extensions:
+            for path in movies_dir.rglob(f"*{ext}", follow_symlinks=follow_symlinks):
+                if path.is_file():
+                    try:
+                        stat = path.stat()
+                        movie_files.append({
+                            'path': str(path),
+                            'size': stat.st_size,
+                            'mtime': stat.st_mtime
+                        })
+                    except OSError:
+                        # Skip files that can't be accessed
+                        continue
+    except TypeError:
+        # Fallback for Python < 3.10: use existing manual traversal
+        def _walk_with_symlinks(directory: Path, follow_symlinks: bool):
+            """Recursively walk directories, optionally following symlinks"""
+            try:
+                for item in directory.iterdir():
+                    if item.is_file():
+                        yield item
+                    elif item.is_dir():
+                        # Follow directory symlinks if enabled
+                        if follow_symlinks or not item.is_symlink():
+                            yield from _walk_with_symlinks(item, follow_symlinks)
+            except (OSError, RuntimeError):
+                # Handle permission errors or broken symlinks
+                pass
+        
+        # Collect all files and filter by extension
+        for ext in extensions:
+            for path in _walk_with_symlinks(movies_dir, follow_symlinks):
+                if path.suffix.lower() == ext.lower():
+                    try:
+                        stat = path.stat()
+                        movie_files.append({
+                            'path': str(path),
+                            'size': stat.st_size,
+                            'mtime': stat.st_mtime
+                        })
+                    except OSError:
+                        # Skip files that can't be accessed
+                        continue
+    
+    cache_data = {
+        'timestamp': time.time(),
+        'movies_dir': str(movies_dir),
+        'follow_symlinks': follow_symlinks,
+        'extensions': extensions,
+        'movies': movie_files
+    }
+    
+    console.print(f"[green]Found {len(movie_files)} movies in cache[/green]")
+    return cache_data
+
+def invalidate_movie_cache():
+    """Invalidate the movie index cache"""
+    cache_path = get_cache_path()
+    
+    if cache_path.exists():
+        try:
+            cache_path.unlink()
+            console.print("[green]Movie index cache cleared[/green]")
+        except OSError as e:
+            console.print(f"[yellow]Warning: Could not clear cache: {e}[/yellow]")
+    else:
+        console.print("[yellow]No cache file found[/yellow]")
+
+def get_cache_info() -> Dict[str, Any]:
+    """Get information about the current cache"""
+    cache_path = get_cache_path()
+    
+    if not cache_path.exists():
+        return {"exists": False}
+    
+    try:
+        cache_data = load_movie_cache()
+        if not cache_data:
+            return {"exists": False}
+        
+        cache_age_hours = (time.time() - cache_data['timestamp']) / 3600
+        
+        return {
+            "exists": True,
+            "path": str(cache_path),
+            "movies_count": len(cache_data.get('movies', [])),
+            "age_hours": cache_age_hours,
+            "movies_dir": cache_data.get('movies_dir', 'unknown'),
+            "size_bytes": cache_path.stat().st_size
+        }
+    except Exception:
+        return {"exists": False}
+
+def find_movie_files(movies_dir: Path, extensions: List[str], follow_symlinks: bool = True) -> List[Path]:
+    """Find all movie files in the directory and subdirectories, optionally following directory symlinks"""
+    config = load_config()
+    
+    # Check if caching is enabled
+    if config.settings.cache_enabled:
+        # Try to load from cache first
+        cache_data = load_movie_cache()
+        
+        if cache_data and is_cache_valid(cache_data, movies_dir, config):
+            # Use cached data
+            console.print("[blue]Using cached movie index[/blue]")
+            movie_files = []
+            for movie_info in cache_data['movies']:
+                movie_path = Path(movie_info['path'])
+                if movie_path.exists():
+                    movie_files.append(movie_path)
+            return sorted(movie_files)
+        else:
+            # Cache is invalid or doesn't exist, build new cache
+            cache_data = build_movie_cache(movies_dir, extensions, follow_symlinks)
+            save_movie_cache(cache_data, config)
+            
+            movie_files = []
+            for movie_info in cache_data['movies']:
+                movie_path = Path(movie_info['path'])
+                movie_files.append(movie_path)
+            return sorted(movie_files)
+    
+    # Fallback to original behavior when caching is disabled
+    movie_files = []
+    
+    # Use rglob with follow_symlinks parameter (Python 3.10+)
+    # For older Python versions, we'll use a manual approach
+    try:
+        # Try Python 3.10+ approach first
+        for ext in extensions:
+            for path in movies_dir.rglob(f"*{ext}", follow_symlinks=follow_symlinks):
+                if path.is_file():
+                    movie_files.append(path)
+    except TypeError:
+        # Fallback for Python < 3.10: manual directory traversal
+        def _walk_with_symlinks(directory: Path, follow_symlinks: bool):
+            """Recursively walk directories, optionally following symlinks"""
+            try:
+                for item in directory.iterdir():
+                    if item.is_file():
+                        yield item
+                    elif item.is_dir():
+                        # Follow directory symlinks if enabled
+                        if follow_symlinks or not item.is_symlink():
+                            yield from _walk_with_symlinks(item, follow_symlinks)
+            except (OSError, RuntimeError):
+                # Handle permission errors or broken symlinks
+                pass
+        
+        # Collect all files and filter by extension
+        for ext in extensions:
+            for path in _walk_with_symlinks(movies_dir, follow_symlinks):
+                if path.suffix.lower() == ext.lower():
+                    movie_files.append(path)
+    
+    return sorted(movie_files)
+
+def fuzzy_match_movie(query: str, movie_files: List[Path]) -> List[Tuple[Path, int]]:
+    """Find movies matching the query using fuzzy matching"""
+    matches = []
+    
+    for movie_file in movie_files:
+        # Test against filename without extension
+        filename = movie_file.stem
+        score = fuzz.partial_ratio(query.lower(), filename.lower())
+        
+        # Also test against parent directory name for movies in subdirectories
+        if movie_file.parent.name != movie_file.parent.parent.name:
+            parent_score = fuzz.partial_ratio(query.lower(), movie_file.parent.name.lower())
+            score = max(score, parent_score)
+        
+        if score > 60:  # Threshold for matching
+            matches.append((movie_file, score))
+    
+    # Sort by score (descending)
+    matches.sort(key=lambda x: x[1], reverse=True)
+    return matches
+
+def select_movie_file(query: str) -> Path:
+    """Select a movie file based on query (path or title)"""
+    config = load_config()
+    
+    # Check if query is a direct file path
+    query_path = Path(query)
+    if query_path.exists() and query_path.is_file():
+        return query_path
+    
+    # Find all movie files
+    movie_files = find_movie_files(config.directories.movies_dir, config.settings.video_extensions, config.settings.follow_symlinks)
+    
+    if not movie_files:
+        console.print("[red]No movie files found in the movies directory![/red]")
+        sys.exit(1)
+    
+    # Fuzzy match against query
+    matches = fuzzy_match_movie(query, movie_files)
+    
+    if not matches:
+        console.print(f"[red]No movies found matching '{query}'[/red]")
+        console.print("\nAvailable movies:")
+        for movie_file in movie_files[:10]:  # Show first 10
+            console.print(f"  - {movie_file.stem}")
+        sys.exit(1)
+    
+    # If exact match or very high score, use it
+    if len(matches) == 1 or matches[0][1] > 90:
+        return matches[0][0]
+    
+    # Show multiple matches for user selection
+    console.print(f"\n[yellow]Multiple movies found for '{query}':[/yellow]")
+    
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("#", style="cyan", width=3)
+    table.add_column("Movie", style="green")
+    table.add_column("Location", style="blue")
+    table.add_column("Score", style="yellow", width=6)
+    
+    for i, (movie_file, score) in enumerate(matches[:10], 1):
+        relative_path = movie_file.relative_to(config.directories.movies_dir)
+        table.add_row(str(i), movie_file.stem, str(relative_path.parent), f"{score}%")
+    
+    console.print(table)
+    
+    while True:
+        try:
+            selection = Prompt.ask(
+                f"\nSelect movie (1-{min(len(matches), 10)})",
+                default="1"
+            )
+            index = int(selection) - 1
+            if 0 <= index < len(matches):
+                return matches[index][0]
+            else:
+                console.print("[red]Invalid selection. Please try again.[/red]")
+        except ValueError:
+            console.print("[red]Please enter a number.[/red]")
+
+def parse_time(time_str: str) -> int:
+    """Parse time string into seconds"""
+    # Handle pure seconds
+    if time_str.isdigit():
+        return int(time_str)
+    
+    # Handle MM:SS or HH:MM:SS format
+    parts = time_str.split(':')
+    if len(parts) == 2:
+        # MM:SS format
+        minutes, seconds = parts
+        return int(minutes) * 60 + int(seconds)
+    elif len(parts) == 3:
+        # HH:MM:SS format
+        hours, minutes, seconds = parts
+        return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+    else:
+        raise ValueError(f"Invalid time format: {time_str}")
+
+def format_time(seconds: int) -> str:
+    """Format seconds into HH:MM:SS"""
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+def generate_output_filename(movie_file: Path, start_seconds: int, end_seconds: int) -> str:
+    """Generate output filename based on movie and timestamps"""
+    movie_name = movie_file.stem
+    
+    # Clean up movie name (remove quality indicators, etc.)
+    movie_name = re.sub(r'\.(19|20)\d{2}\..*', '', movie_name)
+    movie_name = re.sub(r'\.(BluRay|WEB|HDTV|DVDRip)\..*', '', movie_name, flags=re.IGNORECASE)
+    movie_name = re.sub(r'\.x26[45].*', '', movie_name, flags=re.IGNORECASE)
+    movie_name = movie_name.replace('.', '')
+    
+    start_formatted = format_time(start_seconds).replace(':', 'h', 1).replace(':', 'm', 1) + 's'
+    end_formatted = format_time(end_seconds).replace(':', 'h', 1).replace(':', 'm', 1) + 's'
+    
+    return f"{movie_name}_{start_formatted}_to_{end_formatted}.mp4"
+
+def detect_audio_streams(movie_file: Path) -> List[Dict[str, Any]]:
+    """Detect audio streams in a movie file"""
+    try:
+        # Use ffprobe to get stream information
+        command = [
+            "ffprobe",
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_streams",
+            "-select_streams", "a",
+            str(movie_file)
+        ]
+        
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        
+        audio_streams = []
+        for i, stream in enumerate(data.get("streams", [])):
+            stream_info = {
+                "index": i,
+                "codec_name": stream.get("codec_name", "unknown"),
+                "channels": stream.get("channels", 0),
+                "sample_rate": stream.get("sample_rate", 0),
+                "language": stream.get("tags", {}).get("language", "unknown"),
+                "title": stream.get("tags", {}).get("title", ""),
+                "stream_index": stream.get("index", i)
+            }
+            audio_streams.append(stream_info)
+        
+        return audio_streams
+    
+    except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as e:
+        console.print(f"[yellow]Warning: Could not detect audio streams: {e}[/yellow]")
+        # Return a default stream info
+        return [{"index": 0, "language": "unknown", "channels": 2, "stream_index": 1}]
+
+def select_audio_stream(audio_streams: List[Dict[str, Any]], preferred_language: str) -> Optional[Dict[str, Any]]:
+    """Select the best audio stream based on language preference"""
+    if not audio_streams:
+        return None
+    
+    # First, try to find exact language match
+    for stream in audio_streams:
+        if stream["language"] == preferred_language:
+            return stream
+    
+    # If no exact match, try partial matches (e.g., "en" matches "eng")
+    for stream in audio_streams:
+        if stream["language"].startswith(preferred_language[:2]):
+            return stream
+    
+    # If no language match, return first stream
+    return audio_streams[0]
+
+def build_ffmpeg_command(movie_file: Path, start_seconds: int, duration_seconds: int, output_file: Path, preserve_audio: bool = False, audio_lang: Optional[str] = None, stereo: bool = True) -> List[str]:
+    """Build ffmpeg command for clipping"""
+    config = load_config()
+    
+    start_time = format_time(start_seconds)
+    duration_time = format_time(duration_seconds)
+    
+    # Basic command structure
+    command = [
+        "ffmpeg",
+        "-y",  # Overwrite output file
+        "-ss", start_time,
+        "-i", str(movie_file),
+        "-t", duration_time,
+        "-c:v", "copy",
+    ]
+    
+    # Audio handling logic
+    if preserve_audio:
+        # Keep all audio tracks as-is
+        if stereo:
+            command.extend(["-ac", "2"])  # Force stereo mix
+        command.extend([
+            "-c:a", config.settings.default_audio_codec,
+            "-ar", str(config.settings.default_sample_rate),
+        ])
+    else:
+        # Select specific audio stream
+        audio_streams = detect_audio_streams(movie_file)
+        
+        if audio_streams:
+            # Determine which language to use
+            target_language = audio_lang or config.settings.default_audio_language
+            selected_stream = select_audio_stream(audio_streams, target_language)
+            
+            if selected_stream:
+                # Map specific audio stream
+                command.extend(["-map", "0:v:0"])  # Map first video stream
+                command.extend(["-map", f"0:a:{selected_stream['index']}"])  # Map selected audio stream
+                
+                # Show user which stream was selected
+                lang_info = selected_stream["language"] if selected_stream["language"] != "unknown" else "unknown language"
+                console.print(f"[blue]Selected audio:[/blue] Stream {selected_stream['index']} ({lang_info})")
+        
+        # Audio processing options
+        if stereo:
+            command.extend(["-ac", "2"])  # Force stereo mix
+        
+        command.extend([
+            "-c:a", config.settings.default_audio_codec,
+            "-ar", str(config.settings.default_sample_rate),
+        ])
+    
+    # Add output file
+    command.append(str(output_file))
+    
+    return command
+
+def check_ffmpeg():
+    """Check if ffmpeg and ffprobe are available"""
+    if not shutil.which("ffmpeg"):
+        console.print("[red]Error: ffmpeg is not installed or not in PATH[/red]")
+        console.print("Please install ffmpeg to use this script.")
+        sys.exit(1)
+    
+    if not shutil.which("ffprobe"):
+        console.print("[red]Error: ffprobe is not installed or not in PATH[/red]")
+        console.print("Please install ffmpeg (which includes ffprobe) to use this script.")
+        sys.exit(1)
+
+def execute_ffmpeg(command: List[str]) -> bool:
+    """Execute ffmpeg command with progress feedback"""
+    console.print(f"[green]Executing:[/green] {' '.join(command)}")
+    
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True
+        ) as progress:
+            task = progress.add_task("Processing video...", total=None)
+            
+            process = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            progress.update(task, description="✅ Video processed successfully!")
+        
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        console.print(f"[red]FFmpeg error:[/red] {e.stderr}")
+        return False
+
+@click.command()
+@click.argument('movie_input', required=False)
+@click.option('--start', '-s', help='Start time (HH:MM:SS, MM:SS, or seconds)')
+@click.option('--duration', '-d', help='Duration (HH:MM:SS, MM:SS, or seconds)')
+@click.option('--test', is_flag=True, help='Use clips_testing directory for output')
+@click.option('--setup', is_flag=True, help='Run configuration setup')
+@click.option('--preserve-audio', is_flag=True, help='Keep all original audio tracks (lossless)')
+@click.option('--audio-lang', help='Select specific audio language (e.g., eng, fre, spa)')
+@click.option('--stereo/--no-stereo', default=True, help='Force stereo mix (default: stereo)')
+@click.option('--clear-cache', is_flag=True, help='Clear movie index cache')
+@click.option('--cache-info', is_flag=True, help='Show cache information')
+def main(movie_input: Optional[str], start: Optional[str], duration: Optional[str], test: bool, setup: bool, preserve_audio: bool, audio_lang: Optional[str], stereo: bool, clear_cache: bool, cache_info: bool):
+    """Movie clipping tool with fuzzy matching and DaVinci Resolve compatibility"""
+    
+    # Handle setup flag
+    if setup:
+        setup_config()
+        return
+    
+    # Handle cache management flags
+    if clear_cache:
+        invalidate_movie_cache()
+        return
+    
+    if cache_info:
+        info = get_cache_info()
+        if info["exists"]:
+            console.print(f"[green]Cache Information:[/green]")
+            console.print(f"  Path: {info['path']}")
+            console.print(f"  Movies: {info['movies_count']}")
+            console.print(f"  Age: {info['age_hours']:.1f} hours")
+            console.print(f"  Size: {info['size_bytes'] / 1024:.1f} KB")
+            console.print(f"  Movies Directory: {info['movies_dir']}")
+        else:
+            console.print("[yellow]No cache found[/yellow]")
+        return
+    
+    # Check if movie_input is provided
+    if not movie_input:
+        console.print("[red]Error: Movie input is required (unless using --setup)[/red]")
+        console.print("Usage: clip_movie.py MOVIE_INPUT [OPTIONS]")
+        sys.exit(1)
+    
+    # Check ffmpeg availability
+    check_ffmpeg()
+    
+    # Load configuration
+    config = load_config()
+    
+    # Select movie file
+    movie_file = select_movie_file(movie_input)
+    console.print(f"[green]Selected movie:[/green] {movie_file.name}")
+    
+    # Get start time
+    if not start:
+        start = Prompt.ask(
+            "⏱️  Start time (HH:MM:SS, MM:SS, or seconds) [press Enter for 0]",
+            default="0"
+        )
+    
+    # Get duration
+    if not duration:
+        duration = Prompt.ask(
+            "⏱️  Duration (HH:MM:SS, MM:SS, or seconds) [press Enter for 20 seconds]",
+            default="20"
+        )
+    
+    # Parse times
+    try:
+        start_seconds = parse_time(start)
+        duration_seconds = parse_time(duration)
+    except ValueError as e:
+        console.print(f"[red]Time parsing error: {e}[/red]")
+        sys.exit(1)
+    
+    # Generate output filename and determine output directory
+    end_seconds = start_seconds + duration_seconds
+    output_filename = generate_output_filename(movie_file, start_seconds, end_seconds)
+    
+    # Use testing directory if --test flag is used
+    if test:
+        output_dir = config.directories.clips_dir.parent / "clips_testing"
+        output_dir.mkdir(exist_ok=True)
+        output_file = output_dir / output_filename
+    else:
+        output_file = config.directories.clips_dir / output_filename
+    
+    # Build ffmpeg command
+    command = build_ffmpeg_command(movie_file, start_seconds, duration_seconds, output_file, preserve_audio, audio_lang, stereo)
+    
+    # Confirm execution
+    console.print(f"[blue]Creating clip:[/blue] {output_filename}")
+    console.print(f"[blue]From:[/blue] {format_time(start_seconds)} to {format_time(end_seconds)}")
+    console.print(f"[blue]Duration:[/blue] {format_time(duration_seconds)}")
+    
+    if not Confirm.ask("Proceed with clipping?", default=True):
+        console.print("[yellow]Cancelled.[/yellow]")
+        return
+    
+    # Execute ffmpeg
+    success = execute_ffmpeg(command)
+    
+    if success:
+        console.print(f"[green]✅ Clip created successfully![/green]")
+        console.print(f"[green]Output:[/green] {output_file}")
+    else:
+        console.print(f"[red]❌ Failed to create clip[/red]")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
