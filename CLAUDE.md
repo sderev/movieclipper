@@ -61,7 +61,7 @@ git merge feature/new-audio-options
 ### Files to Ignore
 - `~/.config/movieclipper/clip_movie.toml` - User configuration (contains local paths)
 - `clips_testing/` - Test output directory
-- `2025/clips/` - Generated clips
+- `<year>/clips/` - Generated clips (year directories are dynamic)
 - Movie files (*.mkv, *.mp4, etc.) - Too large for git
 - Python cache files (__pycache__/, *.pyc)
 
@@ -101,7 +101,7 @@ uv run clip_movie.py "Iron Man" --test -s 15:35 -d 12
 
 ## Directory Structure
 
-* `2025/` - Year-based organization
+* `<year>/` - Year-based organization (dynamic, defaults to current year)
   * `clips/` - Output directory for trimmed video clips
   * `clips_testing/` - Test output directory (when using --test flag)
   * `download/` - Source movie files (may be in subdirectories or directly in download/)
@@ -117,11 +117,11 @@ uv run clip_movie.py "Iron Man" --test -s 15:35 -d 12
 ```bash
 # Fast, keyframe-based seek + duration + stream copy → mp4 with PCM audio for DaVinci Resolve
 ffmpeg -ss 01:16:25 \
-       -i "2025/download/MovieFolder/source_movie.mkv" \
+       -i "<year>/download/MovieFolder/source_movie.mkv" \
        -t 00:00:35 \
        -c:v copy \
        -c:a pcm_s16le -ar 48000 \
-       "2025/clips/SourceMovie_01h16m25s_to_01h17m00s.mp4"
+       "<year>/clips/SourceMovie_01h16m25s_to_01h17m00s.mp4"
 ```
 
 * `-ss 01:16:25` **before** `-i`: fast seek to nearest keyframe at or before that timestamp.
@@ -134,12 +134,12 @@ ffmpeg -ss 01:16:25 \
 
 ```bash
 ffmpeg -ss 01:16:00 \
-       -i "2025/download/MovieFolder/source_movie.mkv" \
+       -i "<year>/download/MovieFolder/source_movie.mkv" \
        -ss 00:00:25 \
        -t 00:00:35 \
        -c:v libx264 -preset veryfast -crf 18 \
        -c:a pcm_s16le -ar 48000 \
-       "2025/clips/AccurateClip_01h16m25s_to_01h17m00s.mp4"
+       "<year>/clips/AccurateClip_01h16m25s_to_01h17m00s.mp4"
 ```
 
 * First `-ss` (before input) jumps close to target.
@@ -150,12 +150,12 @@ ffmpeg -ss 01:16:00 \
 
 ```bash
 # Using absolute end time (relative to input start): must follow -i
-ffmpeg -i "2025/download/MovieFolder/source_movie.mkv" \
+ffmpeg -i "<year>/download/MovieFolder/source_movie.mkv" \
        -ss 00:30:00 \
        -to 00:31:00 \
        -c:v copy \
        -c:a pcm_s16le -ar 48000 \
-       "2025/clips/Clip_00h30m00s_to_00h31m00s.mp4"
+       "<year>/clips/Clip_00h30m00s_to_00h31m00s.mp4"
 ```
 
 * `-ss` before or after `-i`: fast vs accurate seek behavior.
@@ -166,10 +166,10 @@ ffmpeg -i "2025/download/MovieFolder/source_movie.mkv" \
 
 ```bash
 # Copy video, convert audio to PCM for DaVinci Resolve (RECOMMENDED)
-ffmpeg -i "2025/clips/input_clip.mkv" \
+ffmpeg -i "<year>/clips/input_clip.mkv" \
        -c:v copy \
        -c:a pcm_s16le -ar 48000 \
-       "2025/clips/input_clip_davinci.mp4"
+       "<year>/clips/input_clip_davinci.mp4"
 ```
 
 **Why PCM Audio?** DaVinci Resolve has significant compatibility issues with AAC audio, especially on Linux and with the free version. PCM (uncompressed) audio ensures maximum compatibility and quality.
@@ -193,7 +193,7 @@ ffmpeg -i "2025/clips/input_clip.mkv" \
 
 ## Bulk Audio Conversion
 
-Use the existing `convert_all.sh` script in `2025/download/not_detected/`:
+Use the existing `convert_all.sh` script in `<year>/download/not_detected/`:
 
 * Converts TrueHD and DTS audio tracks to AC3 or AAC for broad compatibility.
 * Preserves video streams with `-c:v copy`.
@@ -237,7 +237,7 @@ Use the existing `convert_all.sh` script in `2025/download/not_detected/`:
 
 ## Processing Workflow
 
-1. Always save clips to `2025/clips/`.
+1. Always save clips to `<year>/clips/` (where `<year>` is the current year).
 2. Use `-c:v copy` and `-c:a pcm_s16le -ar 48000` for DaVinci Resolve compatibility.
 3. For frame-accurate cuts, use two-stage seeking plus minimal re-encode.
 4. PCM audio eliminates the need for additional compatibility fixes.

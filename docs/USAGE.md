@@ -208,10 +208,10 @@ Examples:
 
 ```bash
 # Default clips directory
-~/your-project/2025/clips/
+~/your-project/<year>/clips/
 
 # Testing mode
-~/your-project/2025/clips_testing/
+~/your-project/<year>/clips_testing/
 ```
 
 ## Performance Tips

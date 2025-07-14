@@ -1,4 +1,6 @@
 # Project-specific ignores
+# Configuration is now stored in ~/.config/movieclipper/clip_movie.toml
+# Keep old config ignored in case it still exists
 clip_movie.toml
 clips_testing/
 __pycache__/
@@ -59,4 +61,5 @@ Thumbs.db
 *.ogv
 
 # Year directories containing downloads and clips
-2025/
+# Note: Script now uses dynamic year directories
+[0-9][0-9][0-9][0-9]/

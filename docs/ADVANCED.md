@@ -91,14 +91,14 @@ The Movie Clipper supports directory symlinks for accessing movies stored in mul
 
 ```bash
 # Link to external drive
-ln -s /media/external/Movies ~/projects/movie-clipper/2025/download/ExternalMovies
+ln -s /media/external/Movies ~/projects/movie-clipper/<year>/download/ExternalMovies
 
 # Link to NAS storage
-ln -s /mnt/nas/MovieCollection ~/projects/movie-clipper/2025/download/NASMovies
+ln -s /mnt/nas/MovieCollection ~/projects/movie-clipper/<year>/download/NASMovies
 
 # Link to different genres
-ln -s /storage/Action ~/projects/movie-clipper/2025/download/Action
-ln -s /storage/Comedy ~/projects/movie-clipper/2025/download/Comedy
+ln -s /storage/Action ~/projects/movie-clipper/<year>/download/Action
+ln -s /storage/Comedy ~/projects/movie-clipper/<year>/download/Comedy
 ```
 
 #### Symlink Configuration

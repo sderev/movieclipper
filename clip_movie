@@ -105,11 +105,47 @@ def get_config_path() -> Path:
     config_dir = Path.home() / ".config" / "movieclipper"
     return config_dir / "clip_movie.toml"
 
+def get_old_config_path() -> Path:
+    """Get the path to the old configuration file (for migration)"""
+    return Path(__file__).parent / "clip_movie.toml"
+
+def migrate_config_if_needed() -> bool:
+    """Check if old config exists and migrate it to new location. Returns True if migration occurred."""
+    old_config_path = get_old_config_path()
+    new_config_path = get_config_path()
+    
+    # If new config already exists, no migration needed
+    if new_config_path.exists():
+        return False
+    
+    # If old config doesn't exist, no migration needed
+    if not old_config_path.exists():
+        return False
+    
+    # Migrate old config to new location
+    try:
+        # Create new config directory
+        new_config_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Copy old config to new location
+        import shutil
+        shutil.copy2(old_config_path, new_config_path)
+        
+        console.print(f"[green]✓ Migrated configuration from {old_config_path} to {new_config_path}[/green]")
+        console.print("[yellow]You can safely delete the old config file if desired.[/yellow]")
+        return True
+    except Exception as e:
+        console.print(f"[red]Error migrating config: {e}[/red]")
+        return False
+
 def load_config() -> Config:
     """Load configuration from file or create default"""
     global config
     if config is not None:
         return config
+    
+    # Check for old config and migrate if needed
+    migrate_config_if_needed()
     
     config_path = get_config_path()
     
