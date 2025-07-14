@@ -23,7 +23,7 @@ sudo apt install ffmpeg
 
 # Windows
 # Download from https://ffmpeg.org/download.html
-# Or use chocolatey: choco install ffmpeg
+# Or use winget: winget install FFmpeg
 ```
 
 ### System Requirements

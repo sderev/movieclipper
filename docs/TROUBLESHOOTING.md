@@ -20,8 +20,8 @@ brew install ffmpeg
 sudo apt update
 sudo apt install ffmpeg
 
-# Windows (Chocolatey)
-choco install ffmpeg
+# Windows (Winget)
+winget install FFmpeg
 
 # Windows (Manual)
 # Download from https://ffmpeg.org/download.html
