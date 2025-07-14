@@ -280,14 +280,6 @@ def is_cache_valid(cache_data: Dict[str, Any], movies_dir: Path, config: Config)
     if cache_age_hours > config.settings.cache_ttl_hours:
         return False
     
-    # Check if movies directory was modified after cache creation
-    try:
-        movies_dir_mtime = movies_dir.stat().st_mtime
-        if movies_dir_mtime > cache_data['timestamp']:
-            return False
-    except OSError:
-        return False
-    
     return True
 
 def build_movie_cache(movies_dir: Path, extensions: List[str], follow_symlinks: bool) -> Dict[str, Any]:
