@@ -8,7 +8,7 @@ The most common way to use the Movie Clipper:
 
 ```bash
 # Find and clip a movie by title
-uv run movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 15:35 -d 12
 ```
 
 This command:
@@ -23,7 +23,7 @@ For a guided experience:
 
 ```bash
 # Just provide the movie title
-uv run movieclipper "Doctor Strange"
+movieclipper "Doctor Strange"
 ```
 
 The script will prompt you for:
@@ -39,10 +39,10 @@ The script uses intelligent fuzzy matching to find movies:
 
 ```bash
 # All these find the same movie
-uv run movieclipper "iron man" -s 15:35 -d 12
-uv run movieclipper "Iron Man" -s 15:35 -d 12
-uv run movieclipper "ironman" -s 15:35 -d 12
-uv run movieclipper "iron" -s 15:35 -d 12
+movieclipper "iron man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "ironman" -s 15:35 -d 12
+movieclipper "iron" -s 15:35 -d 12
 ```
 
 ### Direct File Paths
@@ -51,10 +51,10 @@ You can also use direct file paths:
 
 ```bash
 # Use full path
-uv run movieclipper "/path/to/movie.mkv" -s 1:16:25 -d 35
+movieclipper "/path/to/movie.mkv" -s 1:16:25 -d 35
 
 # Use relative path
-uv run movieclipper "movies/action/movie.mkv" -s 1:16:25 -d 35
+movieclipper "movies/action/movie.mkv" -s 1:16:25 -d 35
 ```
 
 ### Multiple Matches
@@ -83,26 +83,26 @@ The script accepts multiple time formats:
 
 ```bash
 # Hours:Minutes:Seconds
-uv run movieclipper "Thor" -s 1:23:45 -d 0:00:30
+movieclipper "Thor" -s 1:23:45 -d 0:00:30
 
 # Minutes:Seconds
-uv run movieclipper "Thor" -s 23:45 -d 30
+movieclipper "Thor" -s 23:45 -d 30
 
 # Pure seconds
-uv run movieclipper "Thor" -s 1425 -d 30
+movieclipper "Thor" -s 1425 -d 30
 ```
 
 ### Time Examples
 
 ```bash
 # 5 seconds into the movie, 10 second clip
-uv run movieclipper "Avengers" -s 5 -d 10
+movieclipper "Avengers" -s 5 -d 10
 
 # 1 hour 30 minutes in, 45 second clip
-uv run movieclipper "Avengers" -s 1:30:00 -d 45
+movieclipper "Avengers" -s 1:30:00 -d 45
 
 # 2 minutes 15 seconds in, 1 minute 30 second clip
-uv run movieclipper "Avengers" -s 2:15 -d 1:30
+movieclipper "Avengers" -s 2:15 -d 1:30
 ```
 
 ## Audio Options
@@ -113,7 +113,7 @@ By default, the script creates DaVinci Resolve-compatible clips:
 
 ```bash
 # Creates stereo English audio, PCM format
-uv run movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 15:35 -d 12
 ```
 
 This gives you:
@@ -127,26 +127,26 @@ Choose specific audio languages:
 
 ```bash
 # French audio
-uv run movieclipper "Iron Man" --audio-lang fre -s 15:35 -d 12
+movieclipper "Iron Man" --audio-lang fre -s 15:35 -d 12
 
 # Chinese audio
-uv run movieclipper "Hero" --audio-lang chi -s 1:05:15 -d 20
+movieclipper "Hero" --audio-lang chi -s 1:05:15 -d 20
 
 # Spanish audio
-uv run movieclipper "Coco" --audio-lang spa -s 45:20 -d 25
+movieclipper "Coco" --audio-lang spa -s 45:20 -d 25
 ```
 
 ### Audio Mixing Options
 
 ```bash
 # Force stereo mix (default)
-uv run movieclipper "Iron Man" --stereo -s 15:35 -d 12
+movieclipper "Iron Man" --stereo -s 15:35 -d 12
 
 # Keep original surround sound
-uv run movieclipper "Iron Man" --no-stereo -s 15:35 -d 12
+movieclipper "Iron Man" --no-stereo -s 15:35 -d 12
 
 # Keep all audio tracks (8 tracks in DaVinci Resolve)
-uv run movieclipper "Iron Man" --preserve-audio -s 15:35 -d 12
+movieclipper "Iron Man" --preserve-audio -s 15:35 -d 12
 ```
 
 ## Testing Mode
@@ -155,7 +155,7 @@ Use testing mode to experiment safely:
 
 ```bash
 # Creates clip in clips_testing/ directory
-uv run movieclipper "Avengers" --test -s 18:35 -d 15
+movieclipper "Avengers" --test -s 18:35 -d 15
 ```
 
 Benefits of testing mode:
@@ -169,25 +169,25 @@ Benefits of testing mode:
 
 ```bash
 # Standard workflow
-uv run movieclipper "Movie Title" -s 1:23:45 -d 30
+movieclipper "Movie Title" -s 1:23:45 -d 30
 ```
 
 ### Batch Processing Different Languages
 
 ```bash
 # Create multiple versions
-uv run movieclipper "Spirited Away" --audio-lang jpn -s 25:30 -d 15  # Japanese
-uv run movieclipper "Spirited Away" --audio-lang eng -s 25:30 -d 15  # English dub
+movieclipper "Spirited Away" --audio-lang jpn -s 25:30 -d 15  # Japanese
+movieclipper "Spirited Away" --audio-lang eng -s 25:30 -d 15  # English dub
 ```
 
 ### Advanced Audio Control
 
 ```bash
 # Keep all tracks but mix to stereo (best of both worlds)
-uv run movieclipper "Interstellar" --preserve-audio --stereo -s 2:15:30 -d 45
+movieclipper "Interstellar" --preserve-audio --stereo -s 2:15:30 -d 45
 
 # Original behavior (8 tracks in DaVinci - for advanced users)
-uv run movieclipper "Dunkirk" --preserve-audio --no-stereo -s 1:30:00 -d 60
+movieclipper "Dunkirk" --preserve-audio --no-stereo -s 1:30:00 -d 60
 ```
 
 ## Output Files
@@ -222,12 +222,12 @@ The script automatically caches movie locations for faster performance:
 
 ```bash
 # First run builds cache (may take time)
-uv run movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 15:35 -d 12
 # Building movie index cache...
 # Found 150 movies in cache
 
 # Subsequent runs use cache (much faster)
-uv run movieclipper "Thor" -s 1:23:45 -d 30
+movieclipper "Thor" -s 1:23:45 -d 30
 # Using cached movie index
 ```
 
@@ -235,10 +235,10 @@ uv run movieclipper "Thor" -s 1:23:45 -d 30
 
 ```bash
 # View cache information
-uv run movieclipper --cache-info
+movieclipper --cache-info
 
 # Clear cache if needed
-uv run movieclipper --clear-cache
+movieclipper --clear-cache
 ```
 
 ## Tips and Tricks
@@ -247,26 +247,26 @@ uv run movieclipper --clear-cache
 
 ```bash
 # Use distinctive parts of the title
-uv run movieclipper "strange" -s 30:45 -d 15  # Finds "Doctor Strange"
-uv run movieclipper "america" -s 48:40 -d 20  # Finds "Captain America"
+movieclipper "strange" -s 30:45 -d 15  # Finds "Doctor Strange"
+movieclipper "america" -s 48:40 -d 20  # Finds "Captain America"
 ```
 
 ### Time Navigation
 
 ```bash
 # Use round numbers for easy navigation
-uv run movieclipper "Movie" -s 1:30:00 -d 30  # Hour and half mark
-uv run movieclipper "Movie" -s 45:00 -d 15    # 45 minute mark
+movieclipper "Movie" -s 1:30:00 -d 30  # Hour and half mark
+movieclipper "Movie" -s 45:00 -d 15    # 45 minute mark
 ```
 
 ### Quality Checking
 
 ```bash
 # Create short test clips first
-uv run movieclipper "Movie" --test -s 1:23:45 -d 5
+movieclipper "Movie" --test -s 1:23:45 -d 5
 
 # Then create the full clip
-uv run movieclipper "Movie" -s 1:23:45 -d 30
+movieclipper "Movie" -s 1:23:45 -d 30
 ```
 
 ## Error Handling
@@ -276,17 +276,17 @@ uv run movieclipper "Movie" -s 1:23:45 -d 30
 **Movie not found:**
 ```bash
 # Be more specific
-uv run movieclipper "Iron Man 2008" -s 15:35 -d 12
+movieclipper "Iron Man 2008" -s 15:35 -d 12
 
 # Or use more of the title
-uv run movieclipper "Iron Man Multi VF" -s 15:35 -d 12
+movieclipper "Iron Man Multi VF" -s 15:35 -d 12
 ```
 
 **Time format errors:**
 ```bash
 # Make sure time format is correct
-uv run movieclipper "Movie" -s 1:23:45 -d 30  # Correct
-uv run movieclipper "Movie" -s 1.23.45 -d 30  # Wrong (uses dots)
+movieclipper "Movie" -s 1:23:45 -d 30  # Correct
+movieclipper "Movie" -s 1.23.45 -d 30  # Wrong (uses dots)
 ```
 
 ### Confirmation Steps

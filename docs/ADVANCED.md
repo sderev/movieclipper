@@ -10,14 +10,14 @@ The Movie Clipper includes a sophisticated caching system that dramatically impr
 
 **First Run:**
 ```bash
-uv run movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 15:35 -d 12
 # Building movie index cache...
 # Found 150 movies in cache
 ```
 
 **Subsequent Runs:**
 ```bash
-uv run movieclipper "Thor" -s 1:23:45 -d 30
+movieclipper "Thor" -s 1:23:45 -d 30
 # Using cached movie index
 ```
 
@@ -33,7 +33,7 @@ uv run movieclipper "Thor" -s 1:23:45 -d 30
 #### View Cache Information
 
 ```bash
-uv run movieclipper --cache-info
+movieclipper --cache-info
 ```
 
 **Sample Output:**
@@ -50,11 +50,11 @@ Cache Information:
 
 ```bash
 # Clear cache manually
-uv run movieclipper --clear-cache
+movieclipper --clear-cache
 # Movie index cache cleared
 
 # Next run will rebuild cache
-uv run movieclipper "Movie" -s 1:23:45 -d 30
+movieclipper "Movie" -s 1:23:45 -d 30
 # Building movie index cache...
 ```
 
@@ -205,10 +205,10 @@ The script validates configuration on startup:
 
 ```bash
 # Reconfigure interactively
-uv run movieclipper --setup
+movieclipper --setup
 
 # Test configuration
-uv run movieclipper --help
+movieclipper --help
 ```
 
 ## FFmpeg Integration
@@ -274,9 +274,9 @@ The script handles various FFmpeg errors:
 
 ```bash
 # Create multiple clips efficiently
-uv run movieclipper "Iron Man" -s 15:35 -d 12
-uv run movieclipper "Iron Man" -s 45:20 -d 8
-uv run movieclipper "Iron Man" -s 1:23:45 -d 25
+movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 45:20 -d 8
+movieclipper "Iron Man" -s 1:23:45 -d 25
 ```
 
 ### Scripted Workflows
@@ -294,7 +294,7 @@ CLIPS=(
 
 for clip in "${CLIPS[@]}"; do
     read -r start duration <<< "$clip"
-    uv run movieclipper "$MOVIE" -s "$start" -d "$duration"
+    movieclipper "$MOVIE" -s "$start" -d "$duration"
 done
 ```
 
@@ -304,7 +304,7 @@ done
 # Test all clips first
 for clip in "${CLIPS[@]}"; do
     read -r start duration <<< "$clip"
-    uv run movieclipper "$MOVIE" --test -s "$start" -d "$duration"
+    movieclipper "$MOVIE" --test -s "$start" -d "$duration"
 done
 
 # Then create final clips
@@ -317,14 +317,14 @@ done
 
 ```bash
 # Enable verbose ffmpeg output
-MOVIE_CLIPPER_VERBOSE=1 uv run movieclipper "Movie" -s 1:23:45 -d 30
+MOVIE_CLIPPER_VERBOSE=1 movieclipper "Movie" -s 1:23:45 -d 30
 ```
 
 ### Testing Mode
 
 ```bash
 # Use testing directory for safe experimentation
-uv run movieclipper "Movie" --test -s 1:23:45 -d 30
+movieclipper "Movie" --test -s 1:23:45 -d 30
 ```
 
 **Testing Benefits:**
@@ -339,10 +339,10 @@ uv run movieclipper "Movie" --test -s 1:23:45 -d 30
 
 ```bash
 # View cache details
-uv run movieclipper --cache-info
+movieclipper --cache-info
 
 # Clear cache for fresh start
-uv run movieclipper --clear-cache
+movieclipper --clear-cache
 
 # Disable cache for debugging
 # Edit ~/.config/movieclipper/movieclipper.toml: cache_enabled = false
@@ -356,7 +356,7 @@ cat ~/.config/movieclipper/movieclipper.toml
 
 # Reset configuration
 rm ~/.config/movieclipper/movieclipper.toml
-uv run movieclipper --setup
+movieclipper --setup
 ```
 
 ## Advanced Workflows
@@ -365,9 +365,9 @@ uv run movieclipper --setup
 
 ```bash
 # Create clips with different audio configurations
-uv run movieclipper "Movie" --audio-lang eng -s 1:23:45 -d 30  # English
-uv run movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30  # French
-uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30  # All tracks
+movieclipper "Movie" --audio-lang eng -s 1:23:45 -d 30  # English
+movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30  # French
+movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30  # All tracks
 ```
 
 ### Multi-Language Projects
@@ -376,7 +376,7 @@ uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30  # All tracks
 # Create language-specific clips
 LANGUAGES=("eng" "fre" "spa" "ger")
 for lang in "${LANGUAGES[@]}"; do
-    uv run movieclipper "Movie" --audio-lang "$lang" -s 1:23:45 -d 30
+    movieclipper "Movie" --audio-lang "$lang" -s 1:23:45 -d 30
 done
 ```
 
@@ -384,11 +384,11 @@ done
 
 ```bash
 # Create test clips first
-uv run movieclipper "Movie" --test -s 1:23:45 -d 5
+movieclipper "Movie" --test -s 1:23:45 -d 5
 
 # Verify in DaVinci Resolve
 # Then create full clips
-uv run movieclipper "Movie" -s 1:23:45 -d 30
+movieclipper "Movie" -s 1:23:45 -d 30
 ```
 
 ## Security and Permissions
@@ -421,7 +421,7 @@ chmod 700 ~/.cache/movie_clipper
 
 ```bash
 # Clear corrupted cache
-uv run movieclipper --clear-cache
+movieclipper --clear-cache
 
 # Disable cache temporarily
 # Edit ~/.config/movieclipper/movieclipper.toml: cache_enabled = false

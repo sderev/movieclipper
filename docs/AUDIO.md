@@ -28,7 +28,7 @@ Movie Clipper's smart audio selection gives you clean, usable audio by default:
 
 ```bash
 # This creates optimal DaVinci Resolve audio
-uv run movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 15:35 -d 12
 ```
 
 **What happens:**
@@ -52,7 +52,7 @@ The script automatically detects and analyzes audio streams:
 
 ```bash
 # When you run the script, you'll see:
-uv run movieclipper "Iron Man" -s 15:35 -d 12
+movieclipper "Iron Man" -s 15:35 -d 12
 # Selected audio: Stream 0 (eng)
 ```
 
@@ -79,25 +79,25 @@ Use these language codes with `--audio-lang`:
 
 ```bash
 # English (default)
-uv run movieclipper "Movie" --audio-lang eng -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang eng -s 1:23:45 -d 30
 
 # French
-uv run movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30
 
 # Spanish  
-uv run movieclipper "Movie" --audio-lang spa -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang spa -s 1:23:45 -d 30
 
 # Chinese
-uv run movieclipper "Movie" --audio-lang chi -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang chi -s 1:23:45 -d 30
 
 # German
-uv run movieclipper "Movie" --audio-lang ger -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang ger -s 1:23:45 -d 30
 
 # Italian
-uv run movieclipper "Movie" --audio-lang ita -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang ita -s 1:23:45 -d 30
 
 # Japanese
-uv run movieclipper "Movie" --audio-lang jpn -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang jpn -s 1:23:45 -d 30
 ```
 
 ### Language Matching
@@ -113,20 +113,20 @@ The script uses intelligent language matching:
 
 ```bash
 # Stereo mix (default - recommended)
-uv run movieclipper "Movie" --stereo -s 1:23:45 -d 30
+movieclipper "Movie" --stereo -s 1:23:45 -d 30
 
 # Preserve original channels (5.1, 7.1, etc.)
-uv run movieclipper "Movie" --no-stereo -s 1:23:45 -d 30
+movieclipper "Movie" --no-stereo -s 1:23:45 -d 30
 ```
 
 ### Audio Preservation
 
 ```bash
 # Smart selection (default)
-uv run movieclipper "Movie" -s 1:23:45 -d 30
+movieclipper "Movie" -s 1:23:45 -d 30
 
 # Keep all original audio tracks
-uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30
+movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30
 ```
 
 ## Common Workflows
@@ -135,7 +135,7 @@ uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30
 
 ```bash
 # Clean stereo English audio - perfect for DaVinci Resolve
-uv run movieclipper "Top Gun" -s 1:23:45 -d 30
+movieclipper "Top Gun" -s 1:23:45 -d 30
 # → Creates clip with 2 stereo tracks, ready to edit
 ```
 
@@ -148,20 +148,20 @@ uv run movieclipper "Top Gun" -s 1:23:45 -d 30
 
 ```bash
 # French dub for international content
-uv run movieclipper "Amélie" --audio-lang fre -s 45:20 -d 25
+movieclipper "Amélie" --audio-lang fre -s 45:20 -d 25
 
 # Chinese audio with original surround sound
-uv run movieclipper "Hero" --audio-lang chi --no-stereo -s 1:05:15 -d 20
+movieclipper "Hero" --audio-lang chi --no-stereo -s 1:05:15 -d 20
 ```
 
 ### Advanced Audio Workflows
 
 ```bash
 # Keep all tracks but mix to stereo (best of both worlds)
-uv run movieclipper "Interstellar" --preserve-audio --stereo -s 2:15:30 -d 45
+movieclipper "Interstellar" --preserve-audio --stereo -s 2:15:30 -d 45
 
 # Original behavior (8 tracks in DaVinci - for advanced users)
-uv run movieclipper "Dunkirk" --preserve-audio --no-stereo -s 1:30:00 -d 60
+movieclipper "Dunkirk" --preserve-audio --no-stereo -s 1:30:00 -d 60
 ```
 
 ## DaVinci Resolve Compatibility
@@ -228,17 +228,17 @@ uv run movieclipper "Dunkirk" --preserve-audio --no-stereo -s 1:30:00 -d 60
 ```bash
 # Make sure you're NOT using --preserve-audio flag
 # Default behavior should give you 2 stereo tracks
-uv run movieclipper "Movie" -s 1:23:45 -d 30  # Correct
-uv run movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30  # Wrong
+movieclipper "Movie" -s 1:23:45 -d 30  # Correct
+movieclipper "Movie" --preserve-audio -s 1:23:45 -d 30  # Wrong
 ```
 
 **Audio is in wrong language**
 ```bash
 # Use --audio-lang to specify your preferred language
-uv run movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30
+movieclipper "Movie" --audio-lang fre -s 1:23:45 -d 30
 
 # Check available languages with --preserve-audio (then re-run without it)
-uv run movieclipper "Movie" --preserve-audio --test -s 1:23:45 -d 5
+movieclipper "Movie" --preserve-audio --test -s 1:23:45 -d 5
 ```
 
 ### Audio Quality Issues
@@ -247,14 +247,14 @@ uv run movieclipper "Movie" --preserve-audio --test -s 1:23:45 -d 5
 ```bash
 # Default PCM audio should be perfect quality
 # If issues persist, try --no-stereo for original channels
-uv run movieclipper "Movie" --no-stereo -s 1:23:45 -d 30
+movieclipper "Movie" --no-stereo -s 1:23:45 -d 30
 ```
 
 **Audio sync issues**
 ```bash
 # This is rare with stream copy - verify source file
 # Test with a different timestamp
-uv run movieclipper "Movie" -s 1:00:00 -d 30
+movieclipper "Movie" -s 1:00:00 -d 30
 ```
 
 ## Advanced Audio Features

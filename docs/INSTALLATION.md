@@ -42,8 +42,13 @@ sudo apt install ffmpeg
 git clone https://github.com/yourusername/movie-clipper.git
 cd movie-clipper
 
+# Add `movieclipper` to your PATH
+echo 'export PATH="$PATH:$(pwd)/bin"' >> ~/.bashrc # or ~/.zshrc
+source ~/.bashrc # or ~/.zshrc
+# Or use your usual method to add to PATH
+
 # Verify installation
-uv run movieclipper --help
+movieclipper --help
 ```
 
 ### Option 2: Download Script Only
@@ -56,7 +61,7 @@ curl -O https://raw.githubusercontent.com/yourusername/movie-clipper/main/moviec
 chmod +x movieclipper
 
 # Test installation
-uv run movieclipper --help
+movieclipper --help
 ```
 
 ## First-Time Setup
@@ -65,7 +70,7 @@ uv run movieclipper --help
 
 ```bash
 # Interactive configuration setup
-uv run movieclipper --setup
+movieclipper --setup
 ```
 
 The setup wizard will ask you to configure:
@@ -79,7 +84,7 @@ The setup wizard will ask you to configure:
 cat ~/.config/movieclipper/movieclipper.toml
 
 # Test with a sample movie
-uv run movieclipper "test movie" --help
+movieclipper "test movie" --help
 ```
 
 ## Directory Structure
@@ -133,7 +138,7 @@ For advanced users, you can manually edit the configuration:
 nano ~/.config/movieclipper/movieclipper.toml
 
 # Reconfigure interactively
-uv run movieclipper --setup
+movieclipper --setup
 ```
 
 ## Verification
@@ -142,7 +147,7 @@ uv run movieclipper --setup
 
 ```bash
 # Test with a real movie file
-uv run movieclipper "your movie title" --test -s 1:00:00 -d 10
+movieclipper "your movie title" --test -s 1:00:00 -d 10
 
 # This should create a 10-second clip in clips_testing/
 ```
@@ -151,10 +156,10 @@ uv run movieclipper "your movie title" --test -s 1:00:00 -d 10
 
 ```bash
 # Check cache information
-uv run movieclipper --cache-info
+movieclipper --cache-info
 
 # Clear cache if needed
-uv run movieclipper --clear-cache
+movieclipper --clear-cache
 ```
 
 ## Common Setup Issues
@@ -191,7 +196,7 @@ ls -la /path/to/your/movies
 cat ~/.config/movieclipper/movieclipper.toml
 
 # Reconfigure if needed
-uv run movieclipper --setup
+movieclipper --setup
 ```
 
 ## External Storage Setup
@@ -233,7 +238,7 @@ If you encounter issues during installation:
 
 1. Check the [Troubleshooting Guide](TROUBLESHOOTING.md)
 2. Verify all prerequisites are installed
-3. Run `uv run movieclipper --help` for available options
+3. Run `movieclipper --help` for available options
 4. Check the [GitHub Issues](https://github.com/yourusername/movie-clipper/issues) for known problems
 
 ---
