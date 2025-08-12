@@ -48,7 +48,7 @@ movieclipper "Bleeder" --test -s 1:23:45 -d 30
 
 ## Key Features
 
-- **Fuzzy Matching**: `"iron man"` finds `Iron.Man.2008.Multi.1080p.Bluray.x264-BDHD.mkv`
+- **Fuzzy Matching**: `"steve zissou"` finds `The.Life.Aquatic.with.Steve.Zissou.2004.Multi.1080p.Bluray.x264-BDHD.mkv`
 - **Smart Audio**: Automatically selects English stereo
 - **Flexible Time Input**: `HH:MM:SS`, `MM:SS`, or pure seconds
 - **Fast Processing**: Stream copy for lossless, lightning-fast video processing
@@ -91,9 +91,9 @@ movieclipper --clear-cache
 ### Finding Movies
 ```bash
 # All these work with fuzzy matching
-movieclipper "iron man" -s 15:35 -d 12
-movieclipper "Iron Man" -s 15:35 -d 12
-movieclipper "ironman" -s 15:35 -d 12
+movieclipper "steve zissou" -s 15:35 -d 12
+movieclipper "Steve Zissou" -s 15:35 -d 12
+movieclipper "stevezissou" -s 15:35 -d 12
 ```
 
 ### Time Formats
