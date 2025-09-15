@@ -86,7 +86,7 @@ class Settings(BaseModel):
     preserve_all_audio: bool = False  # Lossless mode off by default
     preview_by_default: bool = False
     follow_symlinks: bool = True  # Follow symbolic links when searching for movies
-    video_extensions: List[str] = [".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm"]
+    video_extensions: List[str] = [".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m2ts"]
     # Cache settings
     cache_enabled: bool = True  # Enable movie index caching
     cache_ttl_hours: int = 24  # Cache time-to-live in hours
