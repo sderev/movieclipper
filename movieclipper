@@ -291,19 +291,19 @@ def build_movie_cache(movies_dir: Path, extensions: List[str], follow_symlinks: 
     # Use the existing find_movie_files logic but capture more metadata
     try:
         # Try Python 3.10+ approach first
-        for ext in extensions:
-            for path in movies_dir.rglob(f"*{ext}", follow_symlinks=follow_symlinks):
-                if path.is_file():
-                    try:
-                        stat = path.stat()
-                        movie_files.append({
-                            'path': str(path),
-                            'size': stat.st_size,
-                            'mtime': stat.st_mtime
-                        })
-                    except OSError:
-                        # Skip files that can't be accessed
-                        continue
+        for path in movies_dir.rglob(f"*", follow_symlinks=follow_symlinks):
+            print(path)
+            if path.is_file() and path.suffix.lower() in [ext.lower() for ext in extensions]:
+                try:
+                    stat = path.stat()
+                    movie_files.append({
+                        'path': str(path),
+                        'size': stat.st_size,
+                        'mtime': stat.st_mtime
+                    })
+                except OSError:
+                    # Skip files that can't be accessed
+                    continue
     except TypeError:
         # Fallback for Python < 3.10: use existing manual traversal
         def _walk_with_symlinks(directory: Path, follow_symlinks: bool):
@@ -321,19 +321,18 @@ def build_movie_cache(movies_dir: Path, extensions: List[str], follow_symlinks: 
                 pass
         
         # Collect all files and filter by extension
-        for ext in extensions:
-            for path in _walk_with_symlinks(movies_dir, follow_symlinks):
-                if path.suffix.lower() == ext.lower():
-                    try:
-                        stat = path.stat()
-                        movie_files.append({
-                            'path': str(path),
-                            'size': stat.st_size,
-                            'mtime': stat.st_mtime
-                        })
-                    except OSError:
-                        # Skip files that can't be accessed
-                        continue
+        for path in _walk_with_symlinks(movies_dir, follow_symlinks):
+            if path.is_file() and path.suffix.lower() in [ext.lower() for ext in extensions]:
+                try:
+                    stat = path.stat()
+                    movie_files.append({
+                        'path': str(path),
+                        'size': stat.st_size,
+                        'mtime': stat.st_mtime
+                    })
+                except OSError:
+                    # Skip files that can't be accessed
+                    continue
     
     cache_data = {
         'timestamp': time.time(),
@@ -420,10 +419,10 @@ def find_movie_files(movies_dir: Path, extensions: List[str], follow_symlinks: b
     # For older Python versions, we'll use a manual approach
     try:
         # Try Python 3.10+ approach first
-        for ext in extensions:
-            for path in movies_dir.rglob(f"*{ext}", follow_symlinks=follow_symlinks):
-                if path.is_file():
-                    movie_files.append(path)
+        for path in movies_dir.rglob(f"*", follow_symlinks=follow_symlinks):
+            print(path)
+            if path.is_file() and path.suffix.lower() in [ext.lower() for ext in extensions]:
+                movie_files.append(path)
     except TypeError:
         # Fallback for Python < 3.10: manual directory traversal
         def _walk_with_symlinks(directory: Path, follow_symlinks: bool):
