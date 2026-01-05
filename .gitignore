@@ -1,13 +1,16 @@
 # Project-specific ignores
-# Configuration is now stored in ~/.config/movieclipper/clip_movie.toml
+# Configuration is now stored in ~/.config/movieclipper/movieclipper.toml
 # Keep old config ignored in case it still exists
 clip_movie.toml
+movieclipper.toml
 clips_testing/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
+.venv/
+.pytest_cache/
 build/
 develop-eggs/
 dist/
