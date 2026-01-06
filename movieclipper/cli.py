@@ -302,6 +302,9 @@ def iter_movie_files(movies_dir: Path, extensions: List[str], follow_symlinks: b
         for name in files:
             path = Path(root) / name
             if path.suffix.lower() in extensions_lower:
+                # Skip symlinked files when follow_symlinks is False
+                if not follow_symlinks and path.is_symlink():
+                    continue
                 movie_files.append(path)
 
     return sorted(movie_files)
