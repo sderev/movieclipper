@@ -42,7 +42,7 @@ class DirectoryConfig(BaseModel):
     movies_dir: Path
     clips_dir: Path
 
-    @field_validator("movies_dir", "clips_dir")
+    @field_validator("movies_dir")
     @classmethod
     def validate_directory(cls, value: Path) -> Path:
         if not value.exists():
@@ -61,6 +61,8 @@ class DirectoryConfig(BaseModel):
     @field_validator("clips_dir")
     @classmethod
     def validate_clips_dir_writable(cls, value: Path) -> Path:
+        if value.exists() and not value.is_dir():
+            raise ValueError(f"Path is not a directory: {value}")
         if not value.exists():
             try:
                 value.mkdir(parents=True, exist_ok=True)
