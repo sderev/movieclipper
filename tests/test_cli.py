@@ -1,7 +1,8 @@
-from pathlib import Path
 import time
+from pathlib import Path
 
 import pytest
+import toml
 
 from movieclipper import cli
 
@@ -33,6 +34,29 @@ def make_cache_data(movies_dir: Path, config: cli.Config, timestamp=None) -> dic
             {"path": str(movies_dir / "movie.mkv"), "size": 123, "mtime": 456.0},
         ],
     }
+
+
+def test_read_config_creates_missing_clips_dir(tmp_path):
+    movies_dir = tmp_path / "movies"
+    movies_dir.mkdir()
+    clips_dir = tmp_path / "clips"
+    config_path = tmp_path / "movieclipper.toml"
+    config_path.write_text(
+        toml.dumps(
+            {
+                "directories": {
+                    "movies_dir": str(movies_dir),
+                    "clips_dir": str(clips_dir),
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = cli.read_config(config_path)
+
+    assert clips_dir.is_dir()
+    assert config.directories.clips_dir == clips_dir
 
 
 def test_parse_time_formats():
