@@ -611,6 +611,7 @@ def build_ffmpeg_command(
     ]
 
     if preserve_audio:
+        command.extend(["-map", "0:v:0", "-map", "0:a?"])
         if stereo:
             command.extend(["-ac", str(config_value.settings.default_audio_channels)])
         command.extend(
