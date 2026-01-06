@@ -1,6 +1,7 @@
 import time
 from pathlib import Path
 
+from click.testing import CliRunner
 import pytest
 import toml
 
@@ -177,7 +178,12 @@ def test_select_movie_file_expands_user_path(monkeypatch, tmp_path):
     movie_path.write_text("data", encoding="utf-8")
 
     monkeypatch.setenv("HOME", str(home))
-    config = cli.Config(directories=cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir))
+    config = cli.Config(
+        directories=cli.DirectoryConfig(
+            movies_dir=movies_dir,
+            clips_dir=clips_dir,
+        )
+    )
 
     def fail_find_movie_files(*_args, **_kwargs):
         raise AssertionError("Unexpected search")
@@ -185,6 +191,68 @@ def test_select_movie_file_expands_user_path(monkeypatch, tmp_path):
     monkeypatch.setattr(cli, "find_movie_files", fail_find_movie_files)
 
     assert cli.select_movie_file("~/Movies/Title.mkv", config) == movie_path
+
+
+def test_main_uses_config_default_for_preserve_audio(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+    config = cli.Config(
+        directories=cli.DirectoryConfig(
+            movies_dir=movies_dir,
+            clips_dir=clips_dir,
+        ),
+        settings=cli.Settings(preserve_all_audio=True),
+    )
+
+    def fake_load_config():
+        return config
+
+    def fake_check_ffmpeg(*_args, **_kwargs):
+        return cli.FfmpegTools(ffmpeg=Path("/usr/bin/ffmpeg"), ffprobe=None)
+
+    def fake_select_movie_file(*_args, **_kwargs):
+        return tmp_path / "movie.mkv"
+
+    monkeypatch.setattr(cli, "load_config", fake_load_config)
+    monkeypatch.setattr(cli, "check_ffmpeg", fake_check_ffmpeg)
+    monkeypatch.setattr(cli, "select_movie_file", fake_select_movie_file)
+
+    captured = {}
+
+    def fake_build_ffmpeg_command(
+        movie_file,
+        start_seconds,
+        duration_seconds,
+        output_file,
+        ffmpeg_path,
+        ffprobe_path,
+        preserve_audio,
+        audio_lang,
+        stereo,
+        config_value,
+    ):
+        captured["preserve_audio"] = preserve_audio
+        return ["ffmpeg"]
+
+    monkeypatch.setattr(cli, "build_ffmpeg_command", fake_build_ffmpeg_command)
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *_args, **_kwargs: False)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.main,
+        [
+            "--start",
+            "0",
+            "--duration",
+            "10",
+            "movie.mkv",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["preserve_audio"] is True
 
 
 def test_select_audio_stream_prefers_exact_language():

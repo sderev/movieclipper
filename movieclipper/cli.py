@@ -857,6 +857,10 @@ def main(
     tools = check_ffmpeg(ffmpeg_path, ffprobe_path, require_ffprobe=False)
     config_value = load_config()
 
+    ctx = click.get_current_context()
+    if ctx.get_parameter_source("preserve_audio") == click.core.ParameterSource.DEFAULT:
+        preserve_audio = config_value.settings.preserve_all_audio
+
     movie_file = select_movie_file(movie_input, config_value)
     console.print(f"[green]Selected movie:[/green] {movie_file.name}")
 
