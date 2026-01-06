@@ -430,7 +430,7 @@ def select_movie_file(query: str, config_value: Optional[Config] = None) -> Path
     if config_value is None:
         config_value = load_config()
 
-    query_path = Path(query)
+    query_path = Path(query).expanduser()
     if query_path.exists() and query_path.is_file():
         return query_path
 

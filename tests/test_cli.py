@@ -165,6 +165,28 @@ def test_is_cache_valid_rejects_empty(tmp_path):
     assert cli.is_cache_valid({}, config.directories.movies_dir, config) is False
 
 
+def test_select_movie_file_expands_user_path(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    home.mkdir()
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+    movie_path = home / "Movies" / "Title.mkv"
+    movie_path.parent.mkdir()
+    movie_path.write_text("data", encoding="utf-8")
+
+    monkeypatch.setenv("HOME", str(home))
+    config = cli.Config(directories=cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir))
+
+    def fail_find_movie_files(*_args, **_kwargs):
+        raise AssertionError("Unexpected search")
+
+    monkeypatch.setattr(cli, "find_movie_files", fail_find_movie_files)
+
+    assert cli.select_movie_file("~/Movies/Title.mkv", config) == movie_path
+
+
 def test_select_audio_stream_prefers_exact_language():
     streams = [{"language": "eng"}, {"language": "spa"}]
     assert cli.select_audio_stream(streams, "spa") is streams[1]
