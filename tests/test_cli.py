@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 
 import pytest
 
@@ -20,15 +21,62 @@ def make_config(tmp_path: Path) -> cli.Config:
     return cli.Config(directories=cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir))
 
 
+def make_cache_data(movies_dir: Path, config: cli.Config, timestamp=None) -> dict:
+    if timestamp is None:
+        timestamp = time.time()
+    return {
+        "timestamp": timestamp,
+        "movies_dir": str(movies_dir),
+        "follow_symlinks": config.settings.follow_symlinks,
+        "extensions": list(config.settings.video_extensions),
+        "movies": [
+            {"path": str(movies_dir / "movie.mkv"), "size": 123, "mtime": 456.0},
+        ],
+    }
+
+
 def test_parse_time_formats():
     assert cli.parse_time("90") == 90
     assert cli.parse_time("1:30") == 90
     assert cli.parse_time("01:02:03") == 3723
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("0", 0),
+        ("00", 0),
+        ("1:02", 62),
+        ("01:02", 62),
+        ("10:00", 600),
+        ("1:2:3", 3723),
+        ("00:00:05", 5),
+    ],
+)
+def test_parse_time_edge_cases(value, expected):
+    assert cli.parse_time(value) == expected
+
+
 def test_parse_time_invalid():
     with pytest.raises(ValueError):
         cli.parse_time("1:2:3:4")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "1:",
+        ":30",
+        "abc",
+        "1:xx",
+        "1:2:xx",
+        "-5",
+    ],
+)
+def test_parse_time_invalid_edge_cases(value):
+    with pytest.raises(ValueError):
+        cli.parse_time(value)
 
 
 def test_format_time():
@@ -39,6 +87,77 @@ def test_generate_output_filename():
     movie_file = Path("Iron.Man.2008.BluRay.x264.mkv")
     filename = cli.generate_output_filename(movie_file, 60, 120)
     assert filename == "IronMan_00h01m00s_to_00h02m00s.mp4"
+
+
+def test_fuzzy_match_movie_no_matches():
+    movie_files = [Path("/movies/Alpha.mkv"), Path("/movies/Beta.mkv")]
+    assert cli.fuzzy_match_movie("zzzz", movie_files) == []
+
+
+def test_fuzzy_match_movie_uses_parent_folder():
+    movie_files = [
+        Path("/movies/Marvel/Iron.Man.mkv"),
+        Path("/movies/Other/Random.mkv"),
+    ]
+    matches = cli.fuzzy_match_movie("Marvel", movie_files)
+    assert matches
+    assert matches[0][0].name == "Iron.Man.mkv"
+
+
+def test_is_cache_valid_accepts_fresh_cache(tmp_path):
+    config = make_config(tmp_path)
+    movies_dir = config.directories.movies_dir
+    cache_data = make_cache_data(movies_dir, config)
+    assert cli.is_cache_valid(cache_data, movies_dir, config) is True
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    [
+        lambda data, config: data.pop("movies"),
+        lambda data, config: data.__setitem__(
+            "movies_dir", str(Path(data["movies_dir"]) / "other")
+        ),
+        lambda data, config: data.__setitem__("extensions", [".zzz"]),
+        lambda data, config: data.__setitem__(
+            "follow_symlinks", not config.settings.follow_symlinks
+        ),
+        lambda data, config: data.__setitem__(
+            "timestamp",
+            time.time() - (config.settings.cache_ttl_hours + 1) * 3600,
+        ),
+    ],
+)
+def test_is_cache_valid_rejects_mismatches(tmp_path, mutator):
+    config = make_config(tmp_path)
+    movies_dir = config.directories.movies_dir
+    cache_data = make_cache_data(movies_dir, config)
+    mutator(cache_data, config)
+    assert cli.is_cache_valid(cache_data, movies_dir, config) is False
+
+
+def test_is_cache_valid_rejects_empty(tmp_path):
+    config = make_config(tmp_path)
+    assert cli.is_cache_valid({}, config.directories.movies_dir, config) is False
+
+
+def test_select_audio_stream_prefers_exact_language():
+    streams = [{"language": "eng"}, {"language": "spa"}]
+    assert cli.select_audio_stream(streams, "spa") is streams[1]
+
+
+def test_select_audio_stream_falls_back_to_prefix():
+    streams = [{"language": "en-US"}, {"language": "fra"}]
+    assert cli.select_audio_stream(streams, "eng") is streams[0]
+
+
+def test_select_audio_stream_falls_back_to_first():
+    streams = [{"language": "jpn"}, {"language": "spa"}]
+    assert cli.select_audio_stream(streams, "eng") is streams[0]
+
+
+def test_select_audio_stream_returns_none_for_empty():
+    assert cli.select_audio_stream([], "eng") is None
 
 
 def test_build_ffmpeg_command_audio_selection(monkeypatch, tmp_path):
@@ -62,6 +181,7 @@ def test_build_ffmpeg_command_audio_selection(monkeypatch, tmp_path):
         preserve_audio=False,
         audio_lang="eng",
         stereo=True,
+        config_value=config,
     )
 
     assert command[0] == "/usr/bin/ffmpeg"
@@ -69,6 +189,62 @@ def test_build_ffmpeg_command_audio_selection(monkeypatch, tmp_path):
     assert "0:a:1" in command
     assert "-ac" in command
     assert str(config.settings.default_audio_channels) in command
+
+
+def test_build_ffmpeg_command_selects_default_language(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    monkeypatch.setattr(cli, "load_config", lambda: config)
+    monkeypatch.setattr(
+        cli,
+        "detect_audio_streams",
+        lambda movie_file, ffprobe_path: [
+            {"index": 0, "language": "spa", "channels": 2, "stream_index": 0},
+            {"index": 1, "language": "eng", "channels": 2, "stream_index": 1},
+        ],
+    )
+
+    command = cli.build_ffmpeg_command(
+        movie_file=tmp_path / "movie.mkv",
+        start_seconds=0,
+        duration_seconds=10,
+        output_file=tmp_path / "out.mp4",
+        ffmpeg_path=Path("/usr/bin/ffmpeg"),
+        ffprobe_path=Path("/usr/bin/ffprobe"),
+        preserve_audio=False,
+        audio_lang=None,
+        stereo=True,
+        config_value=config,
+    )
+
+    map_indices = [i for i, item in enumerate(command) if item == "-map"]
+    assert command[map_indices[0] + 1] == "0:v:0"
+    assert command[map_indices[1] + 1] == "0:a:1"
+    assert "-ac" in command
+
+
+def test_build_ffmpeg_command_preserve_audio_no_stereo(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    monkeypatch.setattr(cli, "load_config", lambda: config)
+
+    command = cli.build_ffmpeg_command(
+        movie_file=tmp_path / "movie.mkv",
+        start_seconds=0,
+        duration_seconds=10,
+        output_file=tmp_path / "out.mp4",
+        ffmpeg_path=Path("/usr/bin/ffmpeg"),
+        ffprobe_path=None,
+        preserve_audio=True,
+        audio_lang=None,
+        stereo=False,
+        config_value=config,
+    )
+
+    map_indices = [i for i, item in enumerate(command) if item == "-map"]
+    mapped_streams = {command[index + 1] for index in map_indices}
+    assert mapped_streams == {"0:v:0", "0:a?"}
+    assert "-ac" not in command
+    assert "-c:a" in command
+    assert str(config.settings.default_sample_rate) in command
 
 
 def test_resolve_ffmpeg_tools_env(monkeypatch, tmp_path):
