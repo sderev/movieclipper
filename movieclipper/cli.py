@@ -6,6 +6,7 @@ configurable audio handling.
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
@@ -299,8 +300,20 @@ def iter_movie_files(movies_dir: Path, extensions: List[str], follow_symlinks: b
     """Return movie files from a directory tree."""
     extensions_lower = {ext.lower() for ext in extensions}
     movie_files: List[Path] = []
+    warned_errors: set[tuple[int | None, str | None]] = set()
 
-    for root, _, files in os.walk(movies_dir, followlinks=follow_symlinks):
+    def handle_walk_error(error: OSError) -> None:
+        """Handle permission errors gracefully during walk."""
+        if error.errno not in (errno.EACCES, errno.EPERM):
+            return
+        key = (error.errno, error.filename)
+        if key in warned_errors:
+            return
+        warned_errors.add(key)
+        location = error.filename or "unknown path"
+        console.print(f"[yellow]Warning:[/yellow] Permission denied while scanning {location}")
+
+    for root, _, files in os.walk(movies_dir, followlinks=follow_symlinks, onerror=handle_walk_error):
         for name in files:
             path = Path(root) / name
             if path.suffix.lower() in extensions_lower:
