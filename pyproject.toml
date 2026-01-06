@@ -26,9 +26,9 @@ dev = [
 ffmpeg = ["imageio-ffmpeg>=0.4.9,<0.5.0"]
 
 [project.urls]
-Documentation = "https://github.com/sderev/movie-clipper"
-Issues = "https://github.com/sderev/movie-clipper/issues"
-Changelog = "https://github.com/sderev/movie-clipper/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/sderev/movieclipper"
+Issues = "https://github.com/sderev/movieclipper/issues"
+Changelog = "https://github.com/sderev/movieclipper/blob/main/CHANGELOG.md"
 
 [project.scripts]
 movieclipper = "movieclipper.cli:main"
