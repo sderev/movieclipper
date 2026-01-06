@@ -383,10 +383,11 @@ def get_cache_info() -> Dict[str, Any]:
 
 
 def find_movie_files(
-    movies_dir: Path, extensions: List[str], follow_symlinks: bool = True
+    movies_dir: Path, extensions: List[str], follow_symlinks: bool = True, config_value: Optional[Config] = None
 ) -> List[Path]:
     """Find all movie files in the directory and subdirectories."""
-    config_value = load_config()
+    if config_value is None:
+        config_value = load_config()
 
     if config_value.settings.cache_enabled:
         cache_data = load_movie_cache()
@@ -422,9 +423,10 @@ def fuzzy_match_movie(query: str, movie_files: List[Path]) -> List[Tuple[Path, i
     return matches
 
 
-def select_movie_file(query: str) -> Path:
+def select_movie_file(query: str, config_value: Optional[Config] = None) -> Path:
     """Select a movie file based on query (path or title)."""
-    config_value = load_config()
+    if config_value is None:
+        config_value = load_config()
 
     query_path = Path(query)
     if query_path.exists() and query_path.is_file():
@@ -434,6 +436,7 @@ def select_movie_file(query: str) -> Path:
         config_value.directories.movies_dir,
         config_value.settings.video_extensions,
         config_value.settings.follow_symlinks,
+        config_value,
     )
 
     if not movie_files:
@@ -585,9 +588,11 @@ def build_ffmpeg_command(
     preserve_audio: bool = False,
     audio_lang: Optional[str] = None,
     stereo: bool = True,
+    config_value: Optional[Config] = None,
 ) -> List[str]:
     """Build ffmpeg command for clipping."""
-    config_value = load_config()
+    if config_value is None:
+        config_value = load_config()
 
     start_time = format_time(start_seconds)
     duration_time = format_time(duration_seconds)
@@ -847,9 +852,9 @@ def main(
         sys.exit(1)
 
     tools = check_ffmpeg(ffmpeg_path, ffprobe_path, require_ffprobe=False)
-    load_config()
+    config_value = load_config()
 
-    movie_file = select_movie_file(movie_input)
+    movie_file = select_movie_file(movie_input, config_value)
     console.print(f"[green]Selected movie:[/green] {movie_file.name}")
 
     if not start:
@@ -869,11 +874,11 @@ def main(
     output_filename = generate_output_filename(movie_file, start_seconds, end_seconds)
 
     if test:
-        output_dir = load_config().directories.clips_dir.parent / "clips_testing"
+        output_dir = config_value.directories.clips_dir.parent / "clips_testing"
         output_dir.mkdir(exist_ok=True)
         output_file = output_dir / output_filename
     else:
-        output_file = load_config().directories.clips_dir / output_filename
+        output_file = config_value.directories.clips_dir / output_filename
 
     command = build_ffmpeg_command(
         movie_file,
@@ -885,6 +890,7 @@ def main(
         preserve_audio,
         audio_lang,
         stereo,
+        config_value,
     )
 
     console.print(f"[blue]Creating clip:[/blue] {output_filename}")
