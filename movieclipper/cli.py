@@ -782,7 +782,7 @@ def execute_ffmpeg(command: List[str]) -> bool:
 @click.option("--check", is_flag=True, help="Check ffmpeg and configuration")
 @click.option("--ffmpeg-path", help="Path to ffmpeg binary")
 @click.option("--ffprobe-path", help="Path to ffprobe binary")
-@click.option("--preserve-audio", is_flag=True, help="Keep all original audio tracks (lossless)")
+@click.option("--preserve-audio", is_flag=True, help="Keep all audio tracks (re-encodes to PCM for editor compatibility)")
 @click.option("--audio-lang", help="Select specific audio language (e.g., eng, fre, spa)")
 @click.option("--stereo/--no-stereo", default=True, help="Force stereo mix (default: stereo)")
 @click.option("--clear-cache", is_flag=True, help="Clear movie index cache")
