@@ -1,3 +1,4 @@
+import errno
 import time
 from pathlib import Path
 
@@ -164,6 +165,33 @@ def test_is_cache_valid_rejects_mismatches(tmp_path, mutator):
 def test_is_cache_valid_rejects_empty(tmp_path):
     config = make_config(tmp_path)
     assert cli.is_cache_valid({}, config.directories.movies_dir, config) is False
+
+
+def test_iter_movie_files_warns_once_on_permission_error(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    movies_dir.mkdir()
+    (movies_dir / "ok.mkv").write_text("data", encoding="utf-8")
+    warnings = []
+
+    def fake_print(*args, **_kwargs):
+        warnings.append(" ".join(str(arg) for arg in args))
+
+    def fake_walk(root, followlinks=None, onerror=None):
+        if onerror is not None:
+            onerror(PermissionError(errno.EACCES, "Permission denied", str(Path(root) / "secret")))
+            onerror(PermissionError(errno.EACCES, "Permission denied", str(Path(root) / "secret")))
+        yield str(root), [], ["ok.mkv"]
+
+    monkeypatch.setattr(cli.console, "print", fake_print)
+    monkeypatch.setattr(cli.os, "walk", fake_walk)
+
+    movie_files = cli.iter_movie_files(movies_dir, [".mkv"], follow_symlinks=True)
+
+    assert movie_files == [movies_dir / "ok.mkv"]
+    warning_messages = [message for message in warnings if "Warning" in message]
+    assert len(warning_messages) == 1
+    assert "Permission denied" in warning_messages[0]
+    assert "secret" in warning_messages[0]
 
 
 def test_select_movie_file_expands_user_path(monkeypatch, tmp_path):
