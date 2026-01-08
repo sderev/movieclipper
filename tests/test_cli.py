@@ -2,9 +2,9 @@ import errno
 import time
 from pathlib import Path
 
-from click.testing import CliRunner
 import pytest
 import toml
+from click.testing import CliRunner
 
 from movieclipper import cli
 
