@@ -20,8 +20,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import click
 import toml
-from fuzzywuzzy import fuzz
 from pydantic import BaseModel, ValidationError, field_validator
+from rapidfuzz import fuzz
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -313,7 +313,9 @@ def iter_movie_files(movies_dir: Path, extensions: List[str], follow_symlinks: b
         location = error.filename or "unknown path"
         console.print(f"[yellow]Warning:[/yellow] Permission denied while scanning {location}")
 
-    for root, _, files in os.walk(movies_dir, followlinks=follow_symlinks, onerror=handle_walk_error):
+    for root, _, files in os.walk(
+        movies_dir, followlinks=follow_symlinks, onerror=handle_walk_error
+    ):
         for name in files:
             path = Path(root) / name
             if path.suffix.lower() in extensions_lower:
@@ -398,7 +400,10 @@ def get_cache_info() -> Dict[str, Any]:
 
 
 def find_movie_files(
-    movies_dir: Path, extensions: List[str], follow_symlinks: bool = True, config_value: Optional[Config] = None
+    movies_dir: Path,
+    extensions: List[str],
+    follow_symlinks: bool = True,
+    config_value: Optional[Config] = None,
 ) -> List[Path]:
     """Find all movie files in the directory and subdirectories."""
     if config_value is None:
@@ -419,7 +424,7 @@ def find_movie_files(
     return iter_movie_files(movies_dir, extensions, follow_symlinks)
 
 
-def fuzzy_match_movie(query: str, movie_files: List[Path]) -> List[Tuple[Path, int]]:
+def fuzzy_match_movie(query: str, movie_files: List[Path]) -> List[Tuple[Path, float]]:
     """Find movies matching the query using fuzzy matching."""
     matches = []
 
@@ -480,7 +485,12 @@ def select_movie_file(query: str, config_value: Optional[Config] = None) -> Path
 
     for i, (movie_file, score) in enumerate(matches[:10], 1):
         relative_path = movie_file.relative_to(config_value.directories.movies_dir)
-        table.add_row(str(i), movie_file.stem, str(relative_path.parent), f"{score}%")
+        table.add_row(
+            str(i),
+            movie_file.stem,
+            str(relative_path.parent),
+            f"{score:.0f}%",
+        )
 
     console.print(table)
 
@@ -816,7 +826,11 @@ def execute_ffmpeg(command: List[str]) -> bool:
 @click.option("--check", is_flag=True, help="Check ffmpeg and configuration")
 @click.option("--ffmpeg-path", help="Path to ffmpeg binary")
 @click.option("--ffprobe-path", help="Path to ffprobe binary")
-@click.option("--preserve-audio", is_flag=True, help="Keep all audio tracks (re-encodes to PCM for editor compatibility)")
+@click.option(
+    "--preserve-audio",
+    is_flag=True,
+    help="Keep all audio tracks (re-encodes to PCM for editor compatibility)",
+)
 @click.option("--audio-lang", help="Select specific audio language (e.g., eng, fre, spa)")
 @click.option("--stereo/--no-stereo", default=True, help="Force stereo mix (default: stereo)")
 @click.option("--clear-cache", is_flag=True, help="Clear movie index cache")
