@@ -390,7 +390,8 @@ def find_movie_files(
         if cache_data and is_cache_valid(cache_data, movies_dir, config_value):
             console.print("[blue]Using cached movie index[/blue]")
             movie_paths = [Path(info["path"]) for info in cache_data["movies"]]
-            return sorted(movie_paths)
+            existing_paths = [path for path in movie_paths if path.exists()]
+            return sorted(existing_paths)
 
         cache_data = build_movie_cache(movies_dir, extensions, follow_symlinks)
         save_movie_cache(cache_data, config_value)
