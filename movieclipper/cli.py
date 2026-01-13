@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -29,6 +30,10 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 console = Console()
+
+# Accepts Decimal for precise arithmetic, float/int for convenience when calling
+# from external code or tests.
+TimeSeconds = Decimal | float | int
 
 
 @dataclass(frozen=True)
@@ -500,31 +505,65 @@ def select_movie_file(query: str, config_value: Optional[Config] = None) -> Path
             console.print("[red]Please enter a number.[/red]")
 
 
-def parse_time(time_str: str) -> int:
-    """Parse time string into seconds."""
-    if time_str.isdigit():
-        return int(time_str)
+def parse_time(time_str: str) -> Decimal:
+    """Parse time string into seconds as a Decimal."""
+    parts = [part.strip() for part in time_str.split(":")]
+    if len(parts) not in {1, 2, 3}:
+        raise ValueError(f"Invalid time format: {time_str}")
 
-    parts = time_str.split(":")
-    if len(parts) == 2:
-        minutes, seconds = parts
-        return int(minutes) * 60 + int(seconds)
-    if len(parts) == 3:
-        hours, minutes, seconds = parts
-        return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+    def parse_component(part: str, allow_fraction: bool) -> Decimal:
+        # The `-?` prefix matches negative values here so they can be rejected
+        # later with a clear error message rather than failing silently.
+        pattern = r"-?(?:\d+(?:\.\d*)?|\.\d+)" if allow_fraction else r"-?\d+"
+        if not re.fullmatch(pattern, part):
+            raise ValueError(f"Invalid time format: {time_str}")
+        return Decimal(part)
 
-    raise ValueError(f"Invalid time format: {time_str}")
+    if len(parts) == 1:
+        seconds = parse_component(parts[0], allow_fraction=True)
+        values = (seconds,)
+        total_seconds = seconds
+    elif len(parts) == 2:
+        minutes = parse_component(parts[0], allow_fraction=False)
+        seconds = parse_component(parts[1], allow_fraction=True)
+        values = (minutes, seconds)
+        total_seconds = minutes * Decimal("60") + seconds
+    else:
+        hours = parse_component(parts[0], allow_fraction=False)
+        minutes = parse_component(parts[1], allow_fraction=False)
+        seconds = parse_component(parts[2], allow_fraction=True)
+        values = (hours, minutes, seconds)
+        total_seconds = hours * Decimal("3600") + minutes * Decimal("60") + seconds
+
+    if any(value < 0 for value in values) or total_seconds < 0:
+        raise ValueError(f"Negative time values are not allowed: {time_str}")
+
+    return total_seconds
 
 
-def format_time(seconds: int) -> str:
-    """Format seconds into HH:MM:SS."""
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    secs = seconds % 60
-    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+def format_time(seconds: TimeSeconds) -> str:
+    """Format seconds into HH:MM:SS, preserving fractional seconds."""
+    # Quantize to microsecond precision to avoid float artifacts like 0.30000000000000004
+    total_seconds = Decimal(str(seconds)).quantize(Decimal("0.000001"))
+    hours = int(total_seconds // Decimal("3600"))
+    remaining = total_seconds - Decimal(hours) * Decimal("3600")
+    minutes = int(remaining // Decimal("60"))
+    secs = remaining - Decimal(minutes) * Decimal("60")
+
+    secs_int = int(secs)
+    secs_frac = secs - Decimal(secs_int)
+    if secs_frac == 0:
+        secs_str = f"{secs_int:02d}"
+    else:
+        frac_str = f"{secs_frac.normalize():f}".lstrip("0")
+        secs_str = f"{secs_int:02d}{frac_str}"
+
+    return f"{hours:02d}:{minutes:02d}:{secs_str}"
 
 
-def generate_output_filename(movie_file: Path, start_seconds: int, end_seconds: int) -> str:
+def generate_output_filename(
+    movie_file: Path, start_seconds: TimeSeconds, end_seconds: TimeSeconds
+) -> str:
     """Generate output filename based on movie and timestamps."""
     movie_name = movie_file.stem
 
@@ -600,8 +639,8 @@ def select_audio_stream(
 
 def build_ffmpeg_command(
     movie_file: Path,
-    start_seconds: int,
-    duration_seconds: int,
+    start_seconds: TimeSeconds,
+    duration_seconds: TimeSeconds,
     output_file: Path,
     ffmpeg_path: Path,
     ffprobe_path: Optional[Path],
