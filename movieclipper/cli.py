@@ -45,18 +45,13 @@ class DirectoryConfig(BaseModel):
 
     @field_validator("movies_dir")
     @classmethod
-    def validate_directory(cls, value: Path) -> Path:
+    def validate_movies_dir(cls, value: Path) -> Path:
         if not value.exists():
             raise ValueError(f"Directory does not exist: {value}")
         if not value.is_dir():
             raise ValueError(f"Path is not a directory: {value}")
-        return value
-
-    @field_validator("movies_dir")
-    @classmethod
-    def validate_movies_dir_readable(cls, value: Path) -> Path:
-        if not value.exists():
-            raise ValueError(f"Movies directory does not exist: {value}")
+        if not os.access(value, os.R_OK):
+            raise ValueError(f"Movies directory is not readable: {value}")
         return value
 
     @field_validator("clips_dir")

@@ -61,6 +61,19 @@ def test_read_config_creates_missing_clips_dir(tmp_path):
     assert config.directories.clips_dir == clips_dir
 
 
+def test_validate_movies_dir_rejects_unreadable(tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+    movies_dir.chmod(0o000)
+    try:
+        with pytest.raises(ValueError, match="not readable"):
+            cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir)
+    finally:
+        movies_dir.chmod(0o755)
+
+
 def test_parse_time_formats():
     assert cli.parse_time("90") == 90
     assert cli.parse_time("1:30") == 90
