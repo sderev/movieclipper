@@ -228,7 +228,16 @@ def get_cache_path(config_value: Optional[Config] = None) -> Path:
     if config_value.settings.cache_location:
         cache_dir = Path(config_value.settings.cache_location).expanduser()
     else:
-        cache_dir = Path.home() / ".cache" / "movie_clipper"
+        # Migration: use old path if new path doesn't exist but old path does
+        new_cache_dir = Path.home() / ".cache" / "movieclipper"
+        old_cache_dir = Path.home() / ".cache" / "movie_clipper"
+        new_cache_path = new_cache_dir / "movie_index.json"
+        old_cache_path = old_cache_dir / "movie_index.json"
+
+        if not new_cache_path.exists() and old_cache_path.exists():
+            cache_dir = old_cache_dir
+        else:
+            cache_dir = new_cache_dir
 
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir / "movie_index.json"
