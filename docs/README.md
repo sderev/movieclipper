@@ -12,7 +12,13 @@ Requirements:
 
 - Python 3.10 or later
 - ffmpeg (required)
-- ffprobe (optional, enables audio language selection)
+- ffprobe (optional, enables):
+  - Audio language selection
+  - Audio stream detection
+  - Audio codec information
+  - Audio channel count detection
+
+MovieClipper continues without ffprobe, but audio metadata features are limited.
 
 Install with uv:
 
@@ -87,7 +93,8 @@ movieclipper --clear-cache
 
 ## Troubleshooting
 
-- ffmpeg not found: install ffmpeg and ffprobe, or use `movieclipper[ffmpeg]`.
-- ffprobe not found: audio stream selection is limited; install ffprobe to enable language
-  selection.
+- ffmpeg not found: install ffmpeg or use `movieclipper[ffmpeg]`.
+- ffprobe not found: audio metadata features are limited; install ffprobe to enable audio
+  language selection, audio stream detection, audio codec information, and audio channel count
+  detection.
 - Config errors: run `movieclipper --setup` to regenerate the config.

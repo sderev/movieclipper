@@ -6,7 +6,9 @@ Create video clips from movie files with ffmpeg and fuzzy title matching.
 
 - Python 3.10 or later
 - ffmpeg (required)
-- ffprobe (optional, enables audio language selection)
+- ffprobe (optional, enables audio language selection, audio stream detection, audio codec
+  information, and audio channel count detection; without it, audio metadata features run in
+  degraded mode)
 
 ## Install
 
