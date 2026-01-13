@@ -1,5 +1,6 @@
 import errno
 import time
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -75,21 +76,24 @@ def test_validate_movies_dir_rejects_unreadable(tmp_path):
 
 
 def test_parse_time_formats():
-    assert cli.parse_time("90") == 90
-    assert cli.parse_time("1:30") == 90
-    assert cli.parse_time("01:02:03") == 3723
+    assert cli.parse_time("90") == Decimal("90")
+    assert cli.parse_time("1:30") == Decimal("90")
+    assert cli.parse_time("1:30.5") == Decimal("90.5")
+    assert cli.parse_time("01:02:03") == Decimal("3723")
 
 
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        ("0", 0),
-        ("00", 0),
-        ("1:02", 62),
-        ("01:02", 62),
-        ("10:00", 600),
-        ("1:2:3", 3723),
-        ("00:00:05", 5),
+        ("0", Decimal("0")),
+        ("00", Decimal("0")),
+        ("1:02", Decimal("62")),
+        ("01:02", Decimal("62")),
+        ("10:00", Decimal("600")),
+        ("1:2:3", Decimal("3723")),
+        ("00:00:05", Decimal("5")),
+        ("1.123456", Decimal("1.123456")),
+        ("0:01.999999", Decimal("1.999999")),
     ],
 )
 def test_parse_time_edge_cases(value, expected):
@@ -111,6 +115,7 @@ def test_parse_time_invalid():
         "1:xx",
         "1:2:xx",
         "-5",
+        "-1:30",
     ],
 )
 def test_parse_time_invalid_edge_cases(value):
@@ -120,6 +125,12 @@ def test_parse_time_invalid_edge_cases(value):
 
 def test_format_time():
     assert cli.format_time(3723) == "01:02:03"
+
+
+def test_format_time_handles_decimal_sum():
+    start = cli.parse_time("0.1")
+    duration = cli.parse_time("0.2")
+    assert cli.format_time(start + duration) == "00:00:00.3"
 
 
 def test_generate_output_filename():
