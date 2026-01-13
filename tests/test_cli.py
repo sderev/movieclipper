@@ -218,6 +218,28 @@ def test_iter_movie_files_warns_once_on_permission_error(monkeypatch, tmp_path):
     assert "secret" in warning_messages[0]
 
 
+def test_iter_movie_files_skips_symlinked_files(tmp_path):
+    movies_dir = tmp_path / "movies"
+    movies_dir.mkdir()
+    real_movie = movies_dir / "movie.mkv"
+    real_movie.write_text("data", encoding="utf-8")
+    symlinked_movie = movies_dir / "movie-link.mkv"
+    try:
+        symlinked_movie.symlink_to(real_movie)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"Symlinks not supported: {exc}")
+
+    movie_files = cli.iter_movie_files(movies_dir, [".mkv"], follow_symlinks=False)
+
+    assert real_movie in movie_files
+    assert symlinked_movie not in movie_files
+
+    movie_files = cli.iter_movie_files(movies_dir, [".mkv"], follow_symlinks=True)
+
+    assert real_movie in movie_files
+    assert symlinked_movie in movie_files
+
+
 def test_select_movie_file_expands_user_path(monkeypatch, tmp_path):
     home = tmp_path / "home"
     movies_dir = tmp_path / "movies"
