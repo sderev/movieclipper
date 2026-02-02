@@ -246,9 +246,9 @@ def get_cache_path(config_value: Optional[Config] = None) -> Path:
     return cache_dir / "movie_index.json"
 
 
-def load_movie_cache() -> Optional[Dict[str, Any]]:
+def load_movie_cache(config_value: Optional[Config] = None) -> Optional[Dict[str, Any]]:
     """Load movie index cache from file."""
-    cache_path = get_cache_path()
+    cache_path = get_cache_path(config_value)
 
     if not cache_path.exists():
         return None
@@ -359,9 +359,12 @@ def build_movie_cache(
     return cache_data
 
 
-def invalidate_movie_cache() -> None:
+def invalidate_movie_cache(config_value: Optional[Config] = None) -> None:
     """Invalidate the movie index cache."""
-    cache_path = get_cache_path()
+    if config_value is None:
+        config_value = load_config()
+
+    cache_path = get_cache_path(config_value)
 
     if cache_path.exists():
         try:
@@ -373,15 +376,18 @@ def invalidate_movie_cache() -> None:
         console.print("[yellow]No cache file found[/yellow]")
 
 
-def get_cache_info() -> Dict[str, Any]:
+def get_cache_info(config_value: Optional[Config] = None) -> Dict[str, Any]:
     """Get information about the current cache."""
-    cache_path = get_cache_path()
+    if config_value is None:
+        config_value = load_config()
+
+    cache_path = get_cache_path(config_value)
 
     if not cache_path.exists():
         return {"exists": False}
 
     try:
-        cache_data = load_movie_cache()
+        cache_data = load_movie_cache(config_value)
         if not cache_data:
             return {"exists": False}
 
@@ -410,7 +416,7 @@ def find_movie_files(
         config_value = load_config()
 
     if config_value.settings.cache_enabled:
-        cache_data = load_movie_cache()
+        cache_data = load_movie_cache(config_value)
         if cache_data and is_cache_valid(cache_data, movies_dir, config_value):
             console.print("[blue]Using cached movie index[/blue]")
             movie_paths = [Path(info["path"]) for info in cache_data["movies"]]
@@ -894,11 +900,13 @@ def main(
         return
 
     if clear_cache:
-        invalidate_movie_cache()
+        config_value = load_config()
+        invalidate_movie_cache(config_value)
         return
 
     if cache_info:
-        info = get_cache_info()
+        config_value = load_config()
+        info = get_cache_info(config_value)
         if info["exists"]:
             console.print("[green]Cache Information:[/green]")
             console.print(f"  Path: {info['path']}")
