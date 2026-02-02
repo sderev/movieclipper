@@ -10,13 +10,6 @@ from click.testing import CliRunner
 from movieclipper import cli
 
 
-@pytest.fixture(autouse=True)
-def reset_config():
-    cli.config = None
-    yield
-    cli.config = None
-
-
 def make_config(tmp_path: Path) -> cli.Config:
     movies_dir = tmp_path / "movies"
     clips_dir = tmp_path / "clips"
@@ -265,6 +258,15 @@ def test_select_movie_file_expands_user_path(monkeypatch, tmp_path):
     monkeypatch.setattr(cli, "find_movie_files", fail_find_movie_files)
 
     assert cli.select_movie_file("~/Movies/Title.mkv", config) == movie_path
+
+
+def test_select_movie_file_raises_when_no_movies(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+
+    monkeypatch.setattr(cli, "find_movie_files", lambda *_args, **_kwargs: [])
+
+    with pytest.raises(cli.MovieNotFoundError, match="No movie files found"):
+        cli.select_movie_file("missing", config)
 
 
 def test_main_uses_config_default_for_preserve_audio(monkeypatch, tmp_path):

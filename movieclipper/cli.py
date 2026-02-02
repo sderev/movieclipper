@@ -36,6 +36,10 @@ console = Console()
 TimeSeconds = Decimal | float | int
 
 
+class MovieNotFoundError(Exception):
+    """Raised when a movie cannot be selected for the provided query."""
+
+
 @dataclass(frozen=True)
 class FfmpegTools:
     ffmpeg: Path
@@ -104,9 +108,6 @@ class Config(BaseModel):
     settings: Settings = Settings()
 
 
-config: Optional[Config] = None
-
-
 def get_config_path() -> Path:
     """Get the path to the configuration file."""
     config_dir = Path.home() / ".config" / "movieclipper"
@@ -121,23 +122,17 @@ def read_config(config_path: Path) -> Config:
 
 def load_config() -> Config:
     """Load configuration from file or create default."""
-    global config
-    if config is not None:
-        return config
-
     config_path = get_config_path()
 
     if not config_path.exists():
-        config = setup_config()
-    else:
-        try:
-            config = read_config(config_path)
-        except (ValidationError, FileNotFoundError, toml.TomlDecodeError) as exc:
-            console.print(f"[red]Error loading config: {exc}[/red]")
-            console.print("[yellow]Running setup again...[/yellow]")
-            config = setup_config()
+        return setup_config()
 
-    return config
+    try:
+        return read_config(config_path)
+    except (ValidationError, FileNotFoundError, toml.TomlDecodeError) as exc:
+        console.print(f"[red]Error loading config: {exc}[/red]")
+        console.print("[yellow]Running setup again...[/yellow]")
+        return setup_config()
 
 
 def default_directories() -> Tuple[Path, Path]:
@@ -467,7 +462,7 @@ def select_movie_file(query: str, config_value: Optional[Config] = None) -> Path
 
     if not movie_files:
         console.print("[red]No movie files found in the movies directory.[/red]")
-        sys.exit(1)
+        raise MovieNotFoundError("No movie files found in the movies directory.")
 
     matches = fuzzy_match_movie(query, movie_files)
 
@@ -476,7 +471,7 @@ def select_movie_file(query: str, config_value: Optional[Config] = None) -> Path
         console.print("\nAvailable movies:")
         for movie_file in movie_files[:10]:
             console.print(f"  - {movie_file.stem}")
-        sys.exit(1)
+        raise MovieNotFoundError(f"No movies found matching '{query}'")
 
     if len(matches) == 1 or matches[0][1] > 90:
         return matches[0][0]
@@ -930,7 +925,10 @@ def main(
     if ctx.get_parameter_source("preserve_audio") == click.core.ParameterSource.DEFAULT:
         preserve_audio = config_value.settings.preserve_all_audio
 
-    movie_file = select_movie_file(movie_input, config_value)
+    try:
+        movie_file = select_movie_file(movie_input, config_value)
+    except MovieNotFoundError:
+        sys.exit(1)
     console.print(f"[green]Selected movie:[/green] {movie_file.name}")
 
     if not start:
