@@ -48,7 +48,7 @@ Clips are saved under `clips/` inside the chosen movies folder.
 - `--ffmpeg-path` and `--ffprobe-path` override binaries
 - `--audio-lang` selects a preferred audio language
 - `--preserve-audio` keeps all audio tracks
-- `--cache-info` and `--clear-cache` manage the scan cache
+- `--cache-info`, `--clear-cache`, and `--refresh-cache` manage the scan cache
 - `--test` writes output to `clips_testing/`
 
 ## Documentation

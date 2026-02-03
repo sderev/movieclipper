@@ -331,6 +331,66 @@ def test_main_uses_config_default_for_preserve_audio(monkeypatch, tmp_path):
     assert captured["preserve_audio"] is True
 
 
+def test_main_refresh_cache_rebuilds_when_disabled(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+    config = cli.Config(
+        directories=cli.DirectoryConfig(
+            movies_dir=movies_dir,
+            clips_dir=clips_dir,
+        ),
+        settings=cli.Settings(cache_enabled=False),
+    )
+
+    monkeypatch.setattr(cli, "load_config", lambda: config)
+
+    captured = {}
+
+    def fake_build_movie_cache(movies_dir_value, extensions, follow_symlinks):
+        captured["movies_dir"] = movies_dir_value
+        captured["extensions"] = extensions
+        captured["follow_symlinks"] = follow_symlinks
+        return {
+            "timestamp": 0,
+            "movies_dir": str(movies_dir_value),
+            "follow_symlinks": follow_symlinks,
+            "extensions": list(extensions),
+            "movies": [],
+        }
+
+    def fake_save_movie_cache(cache_data, config_value):
+        captured["saved_cache"] = cache_data
+        captured["saved_config"] = config_value
+
+    monkeypatch.setattr(cli, "build_movie_cache", fake_build_movie_cache)
+    monkeypatch.setattr(cli, "save_movie_cache", fake_save_movie_cache)
+
+    def fail_select_movie_file(*_args, **_kwargs):
+        raise AssertionError("Unexpected search")
+
+    monkeypatch.setattr(cli, "select_movie_file", fail_select_movie_file)
+
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--refresh-cache"])
+
+    assert result.exit_code == 0
+    assert captured["movies_dir"] == movies_dir
+    assert captured["extensions"] == config.settings.video_extensions
+    assert captured["follow_symlinks"] is config.settings.follow_symlinks
+    assert captured["saved_cache"]["movies"] == []
+    assert captured["saved_config"] is config
+
+
+def test_main_refresh_cache_rejects_clear_cache():
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--refresh-cache", "--clear-cache"])
+
+    assert result.exit_code == 2
+    assert "--refresh-cache cannot be used with --clear-cache." in result.output
+
+
 def test_select_audio_stream_prefers_exact_language():
     streams = [{"language": "eng"}, {"language": "spa"}]
     assert cli.select_audio_stream(streams, "spa") is streams[1]

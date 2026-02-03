@@ -405,12 +405,18 @@ def find_movie_files(
     extensions: List[str],
     follow_symlinks: bool = True,
     config_value: Optional[Config] = None,
+    force_refresh: bool = False,
 ) -> List[Path]:
     """Find all movie files in the directory and subdirectories."""
     if config_value is None:
         config_value = load_config()
 
     if config_value.settings.cache_enabled:
+        if force_refresh:
+            cache_data = build_movie_cache(movies_dir, extensions, follow_symlinks)
+            save_movie_cache(cache_data, config_value)
+            return [Path(info["path"]) for info in cache_data["movies"]]
+
         cache_data = load_movie_cache(config_value)
         if cache_data and is_cache_valid(cache_data, movies_dir, config_value):
             console.print("[blue]Using cached movie index[/blue]")
@@ -869,6 +875,7 @@ def execute_ffmpeg(command: List[str]) -> bool:
 @click.option("--audio-lang", help="Select specific audio language (e.g., eng, fre, spa)")
 @click.option("--stereo/--no-stereo", default=True, help="Force stereo mix (default: stereo)")
 @click.option("--clear-cache", is_flag=True, help="Clear movie index cache")
+@click.option("--refresh-cache", is_flag=True, help="Rebuild movie index cache and exit")
 @click.option("--cache-info", is_flag=True, help="Show cache information")
 def main(
     movie_input: Optional[str],
@@ -883,15 +890,32 @@ def main(
     audio_lang: Optional[str],
     stereo: bool,
     clear_cache: bool,
+    refresh_cache: bool,
     cache_info: bool,
 ) -> None:
     """Movie clipping tool with fuzzy matching."""
+    if clear_cache and refresh_cache:
+        raise click.BadOptionUsage(
+            "refresh-cache",
+            "--refresh-cache cannot be used with --clear-cache.",
+        )
+
     if check:
         check_environment(ffmpeg_path, ffprobe_path)
         return
 
     if setup:
         setup_config()
+        return
+
+    if refresh_cache:
+        config_value = load_config()
+        cache_data = build_movie_cache(
+            config_value.directories.movies_dir,
+            config_value.settings.video_extensions,
+            config_value.settings.follow_symlinks,
+        )
+        save_movie_cache(cache_data, config_value)
         return
 
     if clear_cache:
