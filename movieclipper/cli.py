@@ -97,7 +97,7 @@ class Settings(BaseModel):
         ".m2ts",
     ]
     cache_enabled: bool = True
-    cache_ttl_hours: int = 24
+    cache_ttl_hours: int = 168
     cache_location: Optional[str] = None
 
 
