@@ -263,10 +263,180 @@ def test_select_movie_file_expands_user_path(monkeypatch, tmp_path):
 def test_select_movie_file_raises_when_no_movies(monkeypatch, tmp_path):
     config = make_config(tmp_path)
 
-    monkeypatch.setattr(cli, "find_movie_files", lambda *_args, **_kwargs: [])
+    def fake_find_movie_files(*_args, include_cache_source=False, **_kwargs):
+        if include_cache_source:
+            return [], False
+        return []
+
+    monkeypatch.setattr(cli, "find_movie_files", fake_find_movie_files)
 
     with pytest.raises(cli.MovieNotFoundError, match="No movie files found"):
         cli.select_movie_file("missing", config)
+
+
+def test_select_movie_file_refreshes_cache_when_empty(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    match_movie = config.directories.movies_dir / "Match.mkv"
+    match_movie.write_text("data", encoding="utf-8")
+
+    calls = []
+    messages = []
+
+    def fake_find_movie_files(
+        _movies_dir,
+        _extensions,
+        follow_symlinks=True,
+        config_value=None,
+        force_refresh=False,
+        include_cache_source=False,
+    ):
+        calls.append(force_refresh)
+        if force_refresh:
+            return [match_movie]
+        if include_cache_source:
+            return [], True
+        return []
+
+    def fake_print(*args, **_kwargs):
+        messages.append(" ".join(str(arg) for arg in args))
+
+    monkeypatch.setattr(cli, "find_movie_files", fake_find_movie_files)
+    monkeypatch.setattr(cli.console, "print", fake_print)
+
+    selected = cli.select_movie_file("Match", config)
+
+    assert selected == match_movie
+    assert calls == [False, True]
+    assert any("No movie files found; refreshing cache" in message for message in messages)
+
+
+def test_select_movie_file_refreshes_cache_on_miss(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    other_movie = config.directories.movies_dir / "Other.mkv"
+    match_movie = config.directories.movies_dir / "Match.mkv"
+    other_movie.write_text("data", encoding="utf-8")
+    match_movie.write_text("data", encoding="utf-8")
+
+    calls = []
+    messages = []
+
+    def fake_find_movie_files(
+        _movies_dir,
+        _extensions,
+        follow_symlinks=True,
+        config_value=None,
+        force_refresh=False,
+        include_cache_source=False,
+    ):
+        calls.append(force_refresh)
+        if force_refresh:
+            return [match_movie]
+        if include_cache_source:
+            return [other_movie], True
+        return [other_movie]
+
+    def fake_print(*args, **_kwargs):
+        messages.append(" ".join(str(arg) for arg in args))
+
+    monkeypatch.setattr(cli, "find_movie_files", fake_find_movie_files)
+    monkeypatch.setattr(cli.console, "print", fake_print)
+
+    selected = cli.select_movie_file("Match", config)
+
+    assert selected == match_movie
+    assert calls == [False, True]
+    assert any("refreshing cache" in message for message in messages)
+
+
+def test_select_movie_file_refreshes_once_then_errors(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    other_movie = config.directories.movies_dir / "Other.mkv"
+    other_movie.write_text("data", encoding="utf-8")
+
+    calls = []
+
+    def fake_find_movie_files(
+        _movies_dir,
+        _extensions,
+        follow_symlinks=True,
+        config_value=None,
+        force_refresh=False,
+        include_cache_source=False,
+    ):
+        calls.append(force_refresh)
+        if include_cache_source:
+            return [other_movie], True
+        return [other_movie]
+
+    monkeypatch.setattr(cli, "find_movie_files", fake_find_movie_files)
+
+    with pytest.raises(cli.MovieNotFoundError, match="No movies found matching"):
+        cli.select_movie_file("zzzz", config)
+
+    assert calls == [False, True]
+
+
+def test_select_movie_file_skips_refresh_on_miss_after_fresh_scan(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    other_movie = config.directories.movies_dir / "Other.mkv"
+    other_movie.write_text("data", encoding="utf-8")
+
+    calls = []
+
+    def fake_find_movie_files(
+        _movies_dir,
+        _extensions,
+        follow_symlinks=True,
+        config_value=None,
+        force_refresh=False,
+        include_cache_source=False,
+    ):
+        calls.append(force_refresh)
+        if include_cache_source:
+            return [other_movie], False
+        return [other_movie]
+
+    monkeypatch.setattr(cli, "find_movie_files", fake_find_movie_files)
+
+    with pytest.raises(cli.MovieNotFoundError, match="No movies found matching"):
+        cli.select_movie_file("zzzz", config)
+
+    assert calls == [False]
+
+
+def test_select_movie_file_skips_refresh_when_cache_disabled(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+    config = cli.Config(
+        directories=cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir),
+        settings=cli.Settings(cache_enabled=False),
+    )
+    other_movie = movies_dir / "Other.mkv"
+    other_movie.write_text("data", encoding="utf-8")
+
+    calls = []
+
+    def fake_find_movie_files(
+        _movies_dir,
+        _extensions,
+        follow_symlinks=True,
+        config_value=None,
+        force_refresh=False,
+        include_cache_source=False,
+    ):
+        calls.append(force_refresh)
+        if include_cache_source:
+            return [other_movie], False
+        return [other_movie]
+
+    monkeypatch.setattr(cli, "find_movie_files", fake_find_movie_files)
+
+    with pytest.raises(cli.MovieNotFoundError, match="No movies found matching"):
+        cli.select_movie_file("zzzz", config)
+
+    assert calls == [False]
 
 
 def test_main_uses_config_default_for_preserve_audio(monkeypatch, tmp_path):

@@ -406,29 +406,45 @@ def find_movie_files(
     follow_symlinks: bool = True,
     config_value: Optional[Config] = None,
     force_refresh: bool = False,
-) -> List[Path]:
+    include_cache_source: bool = False,
+) -> List[Path] | Tuple[List[Path], bool]:
     """Find all movie files in the directory and subdirectories."""
     if config_value is None:
         config_value = load_config()
+
+    used_cached_index = False
 
     if config_value.settings.cache_enabled:
         if force_refresh:
             cache_data = build_movie_cache(movies_dir, extensions, follow_symlinks)
             save_movie_cache(cache_data, config_value)
-            return [Path(info["path"]) for info in cache_data["movies"]]
+            movie_files = [Path(info["path"]) for info in cache_data["movies"]]
+            if include_cache_source:
+                return movie_files, used_cached_index
+            return movie_files
 
         cache_data = load_movie_cache(config_value)
         if cache_data and is_cache_valid(cache_data, movies_dir, config_value):
             console.print("[blue]Using cached movie index[/blue]")
+            used_cached_index = True
             movie_paths = [Path(info["path"]) for info in cache_data["movies"]]
             existing_paths = [path for path in movie_paths if path.exists()]
-            return sorted(existing_paths)
+            movie_files = sorted(existing_paths)
+            if include_cache_source:
+                return movie_files, used_cached_index
+            return movie_files
 
         cache_data = build_movie_cache(movies_dir, extensions, follow_symlinks)
         save_movie_cache(cache_data, config_value)
-        return [Path(info["path"]) for info in cache_data["movies"]]
+        movie_files = [Path(info["path"]) for info in cache_data["movies"]]
+        if include_cache_source:
+            return movie_files, used_cached_index
+        return movie_files
 
-    return iter_movie_files(movies_dir, extensions, follow_symlinks)
+    movie_files = iter_movie_files(movies_dir, extensions, follow_symlinks)
+    if include_cache_source:
+        return movie_files, used_cached_index
+    return movie_files
 
 
 def fuzzy_match_movie(query: str, movie_files: List[Path]) -> List[Tuple[Path, float]]:
@@ -459,18 +475,44 @@ def select_movie_file(query: str, config_value: Optional[Config] = None) -> Path
     if query_path.exists() and query_path.is_file():
         return query_path
 
-    movie_files = find_movie_files(
+    movie_files, used_cached_index = find_movie_files(
         config_value.directories.movies_dir,
         config_value.settings.video_extensions,
         config_value.settings.follow_symlinks,
         config_value,
+        include_cache_source=True,
     )
+
+    refreshed_cache = False
+
+    if not movie_files and config_value.settings.cache_enabled and used_cached_index:
+        console.print("[yellow]No movie files found; refreshing cache and retrying...[/yellow]")
+        movie_files = find_movie_files(
+            config_value.directories.movies_dir,
+            config_value.settings.video_extensions,
+            config_value.settings.follow_symlinks,
+            config_value,
+            force_refresh=True,
+        )
+        refreshed_cache = True
 
     if not movie_files:
         console.print("[red]No movie files found in the movies directory.[/red]")
         raise MovieNotFoundError("No movie files found in the movies directory.")
 
     matches = fuzzy_match_movie(query, movie_files)
+
+    if not matches:
+        if config_value.settings.cache_enabled and used_cached_index and not refreshed_cache:
+            console.print("[yellow]No matches found; refreshing cache and retrying...[/yellow]")
+            movie_files = find_movie_files(
+                config_value.directories.movies_dir,
+                config_value.settings.video_extensions,
+                config_value.settings.follow_symlinks,
+                config_value,
+                force_refresh=True,
+            )
+            matches = fuzzy_match_movie(query, movie_files)
 
     if not matches:
         console.print(f"[red]No movies found matching '{query}'[/red]")

@@ -51,6 +51,8 @@ Clips are saved under `clips/` inside the chosen movies folder.
 - `--cache-info`, `--clear-cache`, and `--refresh-cache` manage the scan cache
 - `--test` writes output to `clips_testing/`
 
+When a cached movie is not found, the cache is automatically refreshed.
+
 ## Documentation
 
 See `docs/README.md` for details.
