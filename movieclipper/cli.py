@@ -14,13 +14,14 @@ import shutil
 import subprocess
 import sys
 import time
+import tomllib
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import click
-import toml
+import tomli_w
 from pydantic import BaseModel, ValidationError, field_validator
 from rapidfuzz import fuzz
 from rich.console import Console
@@ -115,8 +116,8 @@ def get_config_path() -> Path:
 
 
 def read_config(config_path: Path) -> Config:
-    with config_path.open("r", encoding="utf-8") as handle:
-        config_data = toml.load(handle)
+    with config_path.open("rb") as handle:
+        config_data = tomllib.load(handle)
     return Config(**config_data)
 
 
@@ -129,7 +130,7 @@ def load_config() -> Config:
 
     try:
         return read_config(config_path)
-    except (ValidationError, FileNotFoundError, toml.TomlDecodeError) as exc:
+    except (ValidationError, FileNotFoundError, tomllib.TOMLDecodeError) as exc:
         console.print(f"[red]Error loading config: {exc}[/red]")
         console.print("[yellow]Running setup again...[/yellow]")
         return setup_config()
@@ -214,8 +215,8 @@ def save_config(config_value: Config) -> None:
         },
     }
 
-    with config_path.open("w", encoding="utf-8") as handle:
-        toml.dump(config_data, handle)
+    with config_path.open("wb") as handle:
+        tomli_w.dump(config_data, handle)
 
 
 def get_cache_path(config_value: Optional[Config] = None) -> Path:
@@ -866,7 +867,7 @@ def check_environment(ffmpeg_path: Optional[str], ffprobe_path: Optional[str]) -
 
     try:
         read_config(config_path)
-    except (ValidationError, FileNotFoundError, toml.TomlDecodeError) as exc:
+    except (ValidationError, FileNotFoundError, tomllib.TOMLDecodeError) as exc:
         console.print(f"[red]Config file is invalid: {exc}[/red]")
         sys.exit(1)
 

@@ -4,7 +4,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-import toml
+import tomli_w
 from click.testing import CliRunner
 
 from movieclipper import cli
@@ -37,16 +37,15 @@ def test_read_config_creates_missing_clips_dir(tmp_path):
     movies_dir.mkdir()
     clips_dir = tmp_path / "clips"
     config_path = tmp_path / "movieclipper.toml"
-    config_path.write_text(
-        toml.dumps(
+    config_path.write_bytes(
+        tomli_w.dumps(
             {
                 "directories": {
                     "movies_dir": str(movies_dir),
                     "clips_dir": str(clips_dir),
                 }
             }
-        ),
-        encoding="utf-8",
+        ).encode()
     )
 
     config = cli.read_config(config_path)
