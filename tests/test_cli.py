@@ -37,6 +37,17 @@ def make_cache_data(movies_dir: Path, config: cli.Config, timestamp=None) -> dic
     }
 
 
+def make_cache_config(tmp_path: Path, **settings_overrides) -> cli.Config:
+    base_config = make_config(tmp_path)
+    settings_data = cli.Settings().model_dump()
+    settings_data["cache_location"] = str(tmp_path / "cache")
+    settings_data.update(settings_overrides)
+    return cli.Config(
+        directories=base_config.directories,
+        settings=cli.Settings(**settings_data),
+    )
+
+
 def test_read_config_creates_missing_clips_dir(tmp_path):
     movies_dir = tmp_path / "movies"
     movies_dir.mkdir()
@@ -186,6 +197,202 @@ def test_is_cache_valid_rejects_mismatches(tmp_path, mutator):
 def test_is_cache_valid_rejects_empty(tmp_path):
     config = make_config(tmp_path)
     assert cli.is_cache_valid({}, config.directories.movies_dir, config) is False
+
+
+def test_get_cache_path_uses_configured_location(tmp_path):
+    config = make_cache_config(tmp_path)
+
+    cache_path = cli.get_cache_path(config)
+
+    assert cache_path == tmp_path / "cache" / "movie_index.json"
+    assert cache_path.parent.is_dir()
+
+
+def test_get_cache_path_uses_legacy_cache_when_new_cache_is_missing(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    legacy_cache_path = home / ".cache" / "movie_clipper" / "movie_index.json"
+    legacy_cache_path.parent.mkdir(parents=True)
+    legacy_cache_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(cli.Path, "home", lambda: home)
+    config = make_config(tmp_path)
+
+    cache_path = cli.get_cache_path(config)
+
+    assert cache_path == legacy_cache_path
+
+
+def test_save_and_load_movie_cache_round_trip(tmp_path):
+    config = make_cache_config(tmp_path)
+    cache_data = make_cache_data(config.directories.movies_dir, config, timestamp=1234.0)
+
+    cli.save_movie_cache(cache_data, config)
+
+    assert cli.load_movie_cache(config) == cache_data
+
+
+def test_load_movie_cache_returns_none_when_cache_is_invalid_json(tmp_path):
+    config = make_cache_config(tmp_path)
+    cache_path = cli.get_cache_path(config)
+    cache_path.write_text("{broken-json", encoding="utf-8")
+
+    assert cli.load_movie_cache(config) is None
+
+
+def test_invalidate_movie_cache_removes_cache_file(tmp_path):
+    config = make_cache_config(tmp_path)
+    cache_data = make_cache_data(config.directories.movies_dir, config, timestamp=1234.0)
+    cli.save_movie_cache(cache_data, config)
+    cache_path = cli.get_cache_path(config)
+
+    assert cache_path.exists()
+
+    cli.invalidate_movie_cache(config)
+
+    assert not cache_path.exists()
+
+
+def test_invalidate_movie_cache_warns_when_file_is_missing(monkeypatch, tmp_path):
+    config = make_cache_config(tmp_path)
+    messages = []
+    monkeypatch.setattr(
+        cli.console, "print", lambda *args, **_kwargs: messages.append(" ".join(map(str, args)))
+    )
+
+    cli.invalidate_movie_cache(config)
+
+    assert any("No cache file found" in message for message in messages)
+
+
+def test_get_cache_info_reports_existing_cache_metadata(tmp_path):
+    config = make_cache_config(tmp_path)
+    cache_data = make_cache_data(
+        config.directories.movies_dir,
+        config,
+        timestamp=time.time() - 3600,
+    )
+    cli.save_movie_cache(cache_data, config)
+
+    info = cli.get_cache_info(config)
+
+    assert info["exists"] is True
+    assert info["path"] == str(cli.get_cache_path(config))
+    assert info["movies_count"] == 1
+    assert info["movies_dir"] == str(config.directories.movies_dir)
+    assert info["size_bytes"] > 0
+    assert info["age_hours"] == pytest.approx(1, rel=0.2)
+
+
+def test_get_cache_info_returns_missing_for_corrupt_cache(tmp_path):
+    config = make_cache_config(tmp_path)
+    cache_path = cli.get_cache_path(config)
+    cache_path.write_text("{broken-json", encoding="utf-8")
+
+    assert cli.get_cache_info(config) == {"exists": False}
+
+
+def test_find_movie_files_uses_valid_cache_without_rebuild(monkeypatch, tmp_path):
+    config = make_cache_config(tmp_path)
+    movies_dir = config.directories.movies_dir
+    cached_movie = movies_dir / "cached.mkv"
+    cached_movie.write_text("data", encoding="utf-8")
+    cache_data = make_cache_data(movies_dir, config, timestamp=time.time())
+    cache_data["movies"] = [{"path": str(cached_movie), "size": 1, "mtime": 1.0}]
+    cli.save_movie_cache(cache_data, config)
+
+    def fail_build(*_args, **_kwargs):
+        raise AssertionError("Unexpected cache rebuild")
+
+    monkeypatch.setattr(cli, "build_movie_cache", fail_build)
+
+    movie_files, used_cached_index = cli.find_movie_files(
+        movies_dir,
+        config.settings.video_extensions,
+        config.settings.follow_symlinks,
+        config,
+        include_cache_source=True,
+    )
+
+    assert movie_files == [cached_movie]
+    assert used_cached_index is True
+
+
+def test_find_movie_files_excludes_missing_paths_from_valid_cache(tmp_path):
+    config = make_cache_config(tmp_path)
+    movies_dir = config.directories.movies_dir
+    cached_movie = movies_dir / "cached.mkv"
+    cached_movie.write_text("data", encoding="utf-8")
+    missing_movie = movies_dir / "missing.mkv"
+    cache_data = make_cache_data(movies_dir, config, timestamp=time.time())
+    cache_data["movies"] = [
+        {"path": str(missing_movie), "size": 1, "mtime": 1.0},
+        {"path": str(cached_movie), "size": 1, "mtime": 1.0},
+    ]
+    cli.save_movie_cache(cache_data, config)
+
+    movie_files, used_cached_index = cli.find_movie_files(
+        movies_dir,
+        config.settings.video_extensions,
+        config.settings.follow_symlinks,
+        config,
+        include_cache_source=True,
+    )
+
+    assert movie_files == [cached_movie]
+    assert used_cached_index is True
+
+
+def test_find_movie_files_rebuilds_when_cache_is_stale(tmp_path):
+    config = make_cache_config(tmp_path)
+    movies_dir = config.directories.movies_dir
+    fresh_movie = movies_dir / "fresh.mkv"
+    fresh_movie.write_text("data", encoding="utf-8")
+    stale_timestamp = time.time() - (config.settings.cache_ttl_hours + 2) * 3600
+    stale_cache_data = make_cache_data(movies_dir, config, timestamp=stale_timestamp)
+    stale_cache_data["movies"] = []
+    cli.save_movie_cache(stale_cache_data, config)
+
+    movie_files, used_cached_index = cli.find_movie_files(
+        movies_dir,
+        config.settings.video_extensions,
+        config.settings.follow_symlinks,
+        config,
+        include_cache_source=True,
+    )
+
+    refreshed_cache = cli.load_movie_cache(config)
+
+    assert movie_files == [fresh_movie]
+    assert used_cached_index is False
+    assert refreshed_cache is not None
+    assert [Path(item["path"]) for item in refreshed_cache["movies"]] == [fresh_movie]
+    assert refreshed_cache["timestamp"] > stale_timestamp
+
+
+def test_find_movie_files_force_refresh_rebuilds_even_with_valid_cache(tmp_path):
+    config = make_cache_config(tmp_path)
+    movies_dir = config.directories.movies_dir
+    movie_file = movies_dir / "movie.mkv"
+    movie_file.write_text("data", encoding="utf-8")
+    valid_cache_data = make_cache_data(movies_dir, config, timestamp=time.time())
+    valid_cache_data["movies"] = []
+    cli.save_movie_cache(valid_cache_data, config)
+
+    movie_files, used_cached_index = cli.find_movie_files(
+        movies_dir,
+        config.settings.video_extensions,
+        config.settings.follow_symlinks,
+        config,
+        force_refresh=True,
+        include_cache_source=True,
+    )
+
+    refreshed_cache = cli.load_movie_cache(config)
+
+    assert movie_files == [movie_file]
+    assert used_cached_index is False
+    assert refreshed_cache is not None
+    assert [Path(item["path"]) for item in refreshed_cache["movies"]] == [movie_file]
 
 
 def test_iter_movie_files_warns_once_on_permission_error(monkeypatch, tmp_path):
@@ -563,6 +770,64 @@ def test_main_refresh_cache_rejects_clear_cache():
 
     assert result.exit_code == 2
     assert "--refresh-cache cannot be used with --clear-cache." in result.output
+
+
+def test_main_clear_cache_calls_invalidate_cache(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    captured = {}
+
+    monkeypatch.setattr(cli, "load_config", lambda: config)
+
+    def fake_invalidate_movie_cache(config_value):
+        captured["config"] = config_value
+
+    monkeypatch.setattr(cli, "invalidate_movie_cache", fake_invalidate_movie_cache)
+
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--clear-cache"])
+
+    assert result.exit_code == 0
+    assert captured["config"] is config
+
+
+def test_main_cache_info_prints_cache_details(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    monkeypatch.setattr(cli, "load_config", lambda: config)
+    monkeypatch.setattr(
+        cli,
+        "get_cache_info",
+        lambda _config: {
+            "exists": True,
+            "path": "/tmp/movie_index.json",
+            "movies_count": 3,
+            "age_hours": 4.5,
+            "movies_dir": "/movies",
+            "size_bytes": 2048,
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--cache-info"])
+
+    assert result.exit_code == 0
+    assert "Cache Information:" in result.output
+    assert "Path: /tmp/movie_index.json" in result.output
+    assert "Movies: 3" in result.output
+    assert "Age: 4.5 hours" in result.output
+    assert "Size: 2.0 KB" in result.output
+    assert "Movies Directory: /movies" in result.output
+
+
+def test_main_cache_info_prints_missing_cache_message(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    monkeypatch.setattr(cli, "load_config", lambda: config)
+    monkeypatch.setattr(cli, "get_cache_info", lambda _config: {"exists": False})
+
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--cache-info"])
+
+    assert result.exit_code == 0
+    assert "No cache found" in result.output
 
 
 def test_select_audio_stream_prefers_exact_language():
