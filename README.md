@@ -22,10 +22,19 @@ Optional: bundle an ffmpeg binary via `imageio-ffmpeg`:
 uv tool install "movieclipper[ffmpeg]"
 ```
 
+From local source checkout:
+
+```bash
+uv tool install .
+```
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## Quick start
 
 ```bash
 movieclipper --setup
+movieclipper --check
 movieclipper "Movie Title" --start 00:01:00 --duration 20
 ```
 
