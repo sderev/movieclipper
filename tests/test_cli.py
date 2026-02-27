@@ -2,6 +2,7 @@ import errno
 import time
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import tomli_w
@@ -690,6 +691,7 @@ def test_default_directories_prefers_existing_home(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli.Path, "home", lambda: home)
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_is_wsl", lambda: False)
 
     movies_dir, clips_dir = cli.default_directories()
     assert movies_dir == videos
@@ -702,7 +704,130 @@ def test_default_directories_falls_back_to_cwd(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli.Path, "home", lambda: home)
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_is_wsl", lambda: False)
 
     movies_dir, clips_dir = cli.default_directories()
     assert movies_dir == tmp_path
     assert clips_dir == tmp_path / "clips"
+
+
+def test_version_flag():
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--version"])
+    assert result.exit_code == 0
+    assert "movieclipper" in result.output
+
+
+@patch.object(Path, "read_text", return_value="Linux 5.15.0 microsoft-standard-WSL2")
+def test_is_wsl_returns_true(_mock_read):
+    assert cli._is_wsl() is True
+
+
+@patch.object(Path, "read_text", return_value="Linux 6.1.0-generic")
+def test_is_wsl_returns_false_when_not_wsl(_mock_read):
+    assert cli._is_wsl() is False
+
+
+@patch.object(Path, "read_text", side_effect=FileNotFoundError)
+def test_is_wsl_returns_false_on_missing_file(_mock_read):
+    assert cli._is_wsl() is False
+
+
+def test_get_windows_home_parses_userprofile(monkeypatch):
+    def fake_run(cmd, **kwargs):
+        class FakeResult:
+            stdout = r"C:\Users\TestUser" + "\n"
+            returncode = 0
+
+        return FakeResult()
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    result = cli._get_windows_home()
+    assert result == Path("/mnt/c/Users/TestUser")
+
+
+def test_get_windows_home_returns_none_on_failure(monkeypatch):
+    def fake_run(cmd, **kwargs):
+        raise FileNotFoundError("cmd.exe not found")
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    assert cli._get_windows_home() is None
+
+
+def test_default_directories_wsl_prefers_windows_videos(monkeypatch, tmp_path):
+    home = tmp_path / "linux_home"
+    home.mkdir()
+    win_home = tmp_path / "mnt" / "c" / "Users" / "Test"
+    win_videos = win_home / "Videos"
+    win_videos.mkdir(parents=True)
+
+    monkeypatch.setattr(cli.Path, "home", lambda: home)
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_is_wsl", lambda: True)
+    monkeypatch.setattr(cli, "_get_windows_home", lambda: win_home)
+
+    movies_dir, clips_dir = cli.default_directories()
+    assert movies_dir == win_videos
+    assert clips_dir == win_videos / "clips"
+
+
+def test_default_directories_wsl_falls_back_to_linux(monkeypatch, tmp_path):
+    home = tmp_path / "linux_home"
+    linux_videos = home / "Videos"
+    linux_videos.mkdir(parents=True)
+
+    monkeypatch.setattr(cli.Path, "home", lambda: home)
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_is_wsl", lambda: True)
+    monkeypatch.setattr(cli, "_get_windows_home", lambda: None)
+
+    movies_dir, clips_dir = cli.default_directories()
+    assert movies_dir == linux_videos
+    assert clips_dir == linux_videos / "clips"
+
+
+def test_setup_warns_when_ffmpeg_missing(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+
+    monkeypatch.setattr(
+        cli,
+        "setup_config",
+        lambda: cli.Config(
+            directories=cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir),
+        ),
+    )
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cli, "_resolve_imageio_ffmpeg", lambda: None)
+
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--setup"])
+
+    assert result.exit_code == 0
+    assert "ffmpeg not found" in result.output
+
+
+def test_setup_no_warning_when_ffmpeg_present(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+
+    monkeypatch.setattr(
+        cli,
+        "setup_config",
+        lambda: cli.Config(
+            directories=cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir),
+        ),
+    )
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: "/usr/bin/ffmpeg")
+
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--setup"])
+
+    assert result.exit_code == 0
+    assert "ffmpeg not found" not in result.output
