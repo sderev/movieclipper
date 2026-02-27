@@ -706,3 +706,10 @@ def test_default_directories_falls_back_to_cwd(monkeypatch, tmp_path):
     movies_dir, clips_dir = cli.default_directories()
     assert movies_dir == tmp_path
     assert clips_dir == tmp_path / "clips"
+
+
+def test_version_flag():
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--version"])
+    assert result.exit_code == 0
+    assert "movieclipper" in result.output

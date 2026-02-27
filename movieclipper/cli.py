@@ -902,6 +902,7 @@ def execute_ffmpeg(command: List[str]) -> bool:
 
 
 @click.command()
+@click.version_option(package_name="movieclipper", prog_name="movieclipper")
 @click.argument("movie_input", required=False)
 @click.option("--start", "-s", help="Start time (HH:MM:SS, MM:SS, or seconds)")
 @click.option("--duration", "-d", help="Duration (HH:MM:SS, MM:SS, or seconds)")
