@@ -1,5 +1,9 @@
+import builtins
 import errno
+import json
+import sys
 import time
+import types
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
@@ -682,6 +686,434 @@ def test_resolve_ffmpeg_tools_env(monkeypatch, tmp_path):
     tools = cli.resolve_ffmpeg_tools(None, None)
     assert tools.ffmpeg == ffmpeg_path
     assert tools.ffprobe == ffprobe_path
+
+
+def test_resolve_executable_prefers_explicit_candidate(monkeypatch, tmp_path):
+    explicit_path = tmp_path / "explicit-ffmpeg"
+    explicit_path.write_text("", encoding="utf-8")
+    explicit_path.chmod(0o755)
+    env_path = tmp_path / "env-ffmpeg"
+    env_path.write_text("", encoding="utf-8")
+    env_path.chmod(0o755)
+
+    monkeypatch.setenv("MOVIECLIPPER_FFMPEG", str(env_path))
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: None)
+
+    resolved = cli._resolve_executable(
+        str(explicit_path),
+        "MOVIECLIPPER_FFMPEG",
+        "ffmpeg",
+    )
+
+    assert resolved == explicit_path
+
+
+def test_resolve_executable_uses_env_var(monkeypatch, tmp_path):
+    env_path = tmp_path / "ffmpeg-from-env"
+    env_path.write_text("", encoding="utf-8")
+    env_path.chmod(0o755)
+
+    monkeypatch.setenv("MOVIECLIPPER_FFMPEG", str(env_path))
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: None)
+
+    resolved = cli._resolve_executable(None, "MOVIECLIPPER_FFMPEG", "ffmpeg")
+
+    assert resolved == env_path
+
+
+def test_resolve_executable_falls_back_to_path_lookup(monkeypatch):
+    monkeypatch.delenv("MOVIECLIPPER_FFMPEG", raising=False)
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: "/usr/local/bin/ffmpeg")
+
+    resolved = cli._resolve_executable(None, "MOVIECLIPPER_FFMPEG", "ffmpeg")
+
+    assert resolved == Path("/usr/local/bin/ffmpeg")
+
+
+def test_resolve_executable_rejects_missing_file(monkeypatch, tmp_path):
+    missing_path = tmp_path / "missing-ffmpeg"
+    monkeypatch.setenv("MOVIECLIPPER_FFMPEG", str(missing_path))
+
+    with pytest.raises(ValueError, match="does not exist"):
+        cli._resolve_executable(None, "MOVIECLIPPER_FFMPEG", "ffmpeg")
+
+
+def test_resolve_executable_rejects_non_executable(monkeypatch, tmp_path):
+    ffmpeg_path = tmp_path / "ffmpeg"
+    ffmpeg_path.write_text("", encoding="utf-8")
+    ffmpeg_path.chmod(0o644)
+    monkeypatch.setenv("MOVIECLIPPER_FFMPEG", str(ffmpeg_path))
+
+    with pytest.raises(ValueError, match="not executable"):
+        cli._resolve_executable(None, "MOVIECLIPPER_FFMPEG", "ffmpeg")
+
+
+def test_resolve_imageio_ffmpeg_returns_none_on_import_error(monkeypatch):
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "imageio_ffmpeg":
+            raise ImportError("missing optional dependency")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    assert cli._resolve_imageio_ffmpeg() is None
+
+
+def test_resolve_imageio_ffmpeg_returns_path_from_module(monkeypatch):
+    fake_module = types.ModuleType("imageio_ffmpeg")
+    fake_module.get_ffmpeg_exe = lambda: "/opt/imageio/ffmpeg"
+    monkeypatch.setitem(sys.modules, "imageio_ffmpeg", fake_module)
+
+    assert cli._resolve_imageio_ffmpeg() == Path("/opt/imageio/ffmpeg")
+
+
+def test_resolve_imageio_ffmpeg_returns_none_on_lookup_error(monkeypatch):
+    fake_module = types.ModuleType("imageio_ffmpeg")
+
+    def fake_get_ffmpeg_exe():
+        raise RuntimeError("bad state")
+
+    fake_module.get_ffmpeg_exe = fake_get_ffmpeg_exe
+    monkeypatch.setitem(sys.modules, "imageio_ffmpeg", fake_module)
+
+    assert cli._resolve_imageio_ffmpeg() is None
+
+
+def test_resolve_ffmpeg_tools_uses_imageio_ffmpeg_and_sibling_ffprobe(monkeypatch, tmp_path):
+    tools_dir = tmp_path / "tools"
+    tools_dir.mkdir()
+    ffmpeg_path = tools_dir / "ffmpeg"
+    ffprobe_path = tools_dir / "ffprobe"
+    ffmpeg_path.write_text("", encoding="utf-8")
+    ffprobe_path.write_text("", encoding="utf-8")
+    ffmpeg_path.chmod(0o755)
+    ffprobe_path.chmod(0o755)
+
+    monkeypatch.setattr(cli, "_resolve_executable", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cli, "_resolve_imageio_ffmpeg", lambda: ffmpeg_path)
+
+    tools = cli.resolve_ffmpeg_tools(None, None)
+
+    assert tools.ffmpeg == ffmpeg_path
+    assert tools.ffprobe == ffprobe_path
+
+
+def test_resolve_ffmpeg_tools_exits_when_ffmpeg_path_invalid(monkeypatch, capsys):
+    def fake_resolve_executable(_candidate, env_key, _default_name):
+        if env_key == "MOVIECLIPPER_FFMPEG":
+            raise ValueError("invalid ffmpeg")
+        return None
+
+    monkeypatch.setattr(cli, "_resolve_executable", fake_resolve_executable)
+
+    with pytest.raises(SystemExit, match="1"):
+        cli.resolve_ffmpeg_tools(None, None)
+
+    captured = capsys.readouterr()
+    assert "invalid ffmpeg" in captured.out
+
+
+def test_resolve_ffmpeg_tools_exits_when_ffprobe_path_invalid(monkeypatch, capsys):
+    ffmpeg_path = Path("/usr/bin/ffmpeg")
+
+    def fake_resolve_executable(_candidate, env_key, _default_name):
+        if env_key == "MOVIECLIPPER_FFMPEG":
+            return ffmpeg_path
+        raise ValueError("invalid ffprobe")
+
+    monkeypatch.setattr(cli, "_resolve_executable", fake_resolve_executable)
+
+    with pytest.raises(SystemExit, match="1"):
+        cli.resolve_ffmpeg_tools(None, None)
+
+    captured = capsys.readouterr()
+    assert "invalid ffprobe" in captured.out
+
+
+def test_check_ffmpeg_warns_when_ffprobe_missing(monkeypatch, tmp_path, capsys):
+    ffmpeg_path = tmp_path / "ffmpeg"
+    ffmpeg_path.write_text("", encoding="utf-8")
+    ffmpeg_path.chmod(0o755)
+
+    monkeypatch.setattr(
+        cli,
+        "resolve_ffmpeg_tools",
+        lambda _ffmpeg_path, _ffprobe_path: cli.FfmpegTools(ffmpeg=ffmpeg_path, ffprobe=None),
+    )
+    checked = []
+    monkeypatch.setattr(cli, "_verify_tool", lambda path, label: checked.append((path, label)))
+
+    tools = cli.check_ffmpeg(None, None, require_ffprobe=False)
+
+    assert tools.ffmpeg == ffmpeg_path
+    assert tools.ffprobe is None
+    assert checked == [(ffmpeg_path, "ffmpeg")]
+    assert "ffprobe not found" in capsys.readouterr().out
+
+
+def test_check_ffmpeg_requires_ffprobe_when_requested(monkeypatch, tmp_path):
+    ffmpeg_path = tmp_path / "ffmpeg"
+    ffmpeg_path.write_text("", encoding="utf-8")
+    ffmpeg_path.chmod(0o755)
+
+    monkeypatch.setattr(
+        cli,
+        "resolve_ffmpeg_tools",
+        lambda _ffmpeg_path, _ffprobe_path: cli.FfmpegTools(ffmpeg=ffmpeg_path, ffprobe=None),
+    )
+    checked = []
+    monkeypatch.setattr(cli, "_verify_tool", lambda path, label: checked.append((path, label)))
+
+    with pytest.raises(SystemExit, match="1"):
+        cli.check_ffmpeg(None, None, require_ffprobe=True)
+
+    assert checked == [(ffmpeg_path, "ffmpeg")]
+
+
+def test_check_ffmpeg_verifies_ffprobe_when_available(monkeypatch, tmp_path):
+    ffmpeg_path = tmp_path / "ffmpeg"
+    ffprobe_path = tmp_path / "ffprobe"
+    ffmpeg_path.write_text("", encoding="utf-8")
+    ffprobe_path.write_text("", encoding="utf-8")
+    ffmpeg_path.chmod(0o755)
+    ffprobe_path.chmod(0o755)
+
+    monkeypatch.setattr(
+        cli,
+        "resolve_ffmpeg_tools",
+        lambda _ffmpeg_path, _ffprobe_path: cli.FfmpegTools(
+            ffmpeg=ffmpeg_path,
+            ffprobe=ffprobe_path,
+        ),
+    )
+    checked = []
+    monkeypatch.setattr(cli, "_verify_tool", lambda path, label: checked.append((path, label)))
+
+    tools = cli.check_ffmpeg(None, None)
+
+    assert tools.ffprobe == ffprobe_path
+    assert checked == [(ffmpeg_path, "ffmpeg"), (ffprobe_path, "ffprobe")]
+
+
+def test_check_environment_reports_tools_and_config(monkeypatch, tmp_path, capsys):
+    ffmpeg_path = tmp_path / "ffmpeg"
+    ffprobe_path = tmp_path / "ffprobe"
+    ffmpeg_path.write_text("", encoding="utf-8")
+    ffprobe_path.write_text("", encoding="utf-8")
+    ffmpeg_path.chmod(0o755)
+    ffprobe_path.chmod(0o755)
+    config_path = tmp_path / "movieclipper.toml"
+    config_path.write_text("", encoding="utf-8")
+
+    captured = {}
+
+    def fake_check_ffmpeg(ffmpeg_path_arg, ffprobe_path_arg, require_ffprobe=False):
+        captured["ffmpeg_path"] = ffmpeg_path_arg
+        captured["ffprobe_path"] = ffprobe_path_arg
+        captured["require_ffprobe"] = require_ffprobe
+        return cli.FfmpegTools(ffmpeg=ffmpeg_path, ffprobe=ffprobe_path)
+
+    monkeypatch.setattr(cli, "check_ffmpeg", fake_check_ffmpeg)
+    monkeypatch.setattr(cli, "get_config_path", lambda: config_path)
+    monkeypatch.setattr(cli, "read_config", lambda _path: make_config(tmp_path))
+
+    cli.check_environment("ffmpeg-custom", "ffprobe-custom")
+
+    assert captured == {
+        "ffmpeg_path": "ffmpeg-custom",
+        "ffprobe_path": "ffprobe-custom",
+        "require_ffprobe": False,
+    }
+    output = capsys.readouterr().out
+    normalized_output = output.replace("\n", "")
+    assert str(ffmpeg_path) in output
+    assert str(ffprobe_path) in output
+    assert str(config_path) in normalized_output
+
+
+def test_check_environment_exits_when_config_missing(monkeypatch, tmp_path):
+    ffmpeg_path = tmp_path / "ffmpeg"
+    ffmpeg_path.write_text("", encoding="utf-8")
+    ffmpeg_path.chmod(0o755)
+    config_path = tmp_path / "missing-config.toml"
+
+    monkeypatch.setattr(
+        cli,
+        "check_ffmpeg",
+        lambda _ffmpeg_path, _ffprobe_path, require_ffprobe=False: cli.FfmpegTools(
+            ffmpeg=ffmpeg_path, ffprobe=None
+        ),
+    )
+    monkeypatch.setattr(cli, "get_config_path", lambda: config_path)
+
+    with pytest.raises(SystemExit, match="1"):
+        cli.check_environment(None, None)
+
+
+def test_check_environment_exits_when_config_invalid(monkeypatch, tmp_path, capsys):
+    ffmpeg_path = tmp_path / "ffmpeg"
+    ffmpeg_path.write_text("", encoding="utf-8")
+    ffmpeg_path.chmod(0o755)
+    config_path = tmp_path / "movieclipper.toml"
+    config_path.write_text("invalid", encoding="utf-8")
+
+    monkeypatch.setattr(
+        cli,
+        "check_ffmpeg",
+        lambda _ffmpeg_path, _ffprobe_path, require_ffprobe=False: cli.FfmpegTools(
+            ffmpeg=ffmpeg_path, ffprobe=None
+        ),
+    )
+    monkeypatch.setattr(cli, "get_config_path", lambda: config_path)
+    monkeypatch.setattr(
+        cli,
+        "read_config",
+        lambda _path: (_ for _ in ()).throw(FileNotFoundError("broken config")),
+    )
+
+    with pytest.raises(SystemExit, match="1"):
+        cli.check_environment(None, None)
+
+    assert "Config file is invalid" in capsys.readouterr().out
+
+
+def test_main_check_invokes_check_environment(monkeypatch):
+    captured = {}
+
+    def fake_check_environment(ffmpeg_path, ffprobe_path):
+        captured["ffmpeg_path"] = ffmpeg_path
+        captured["ffprobe_path"] = ffprobe_path
+
+    monkeypatch.setattr(cli, "check_environment", fake_check_environment)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.main,
+        ["--check", "--ffmpeg-path", "/tools/ffmpeg", "--ffprobe-path", "/tools/ffprobe"],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "ffmpeg_path": "/tools/ffmpeg",
+        "ffprobe_path": "/tools/ffprobe",
+    }
+
+
+def test_detect_audio_streams_returns_default_when_ffprobe_missing():
+    streams = cli.detect_audio_streams(Path("/movies/title.mkv"), ffprobe_path=None)
+
+    assert streams == [{"index": 0, "language": "unknown", "channels": 2, "stream_index": 0}]
+
+
+def test_detect_audio_streams_parses_ffprobe_output(monkeypatch, tmp_path):
+    movie_file = tmp_path / "movie.mkv"
+    ffprobe_path = tmp_path / "ffprobe"
+    movie_file.write_text("", encoding="utf-8")
+    ffprobe_path.write_text("", encoding="utf-8")
+    ffprobe_path.chmod(0o755)
+    captured = {}
+
+    def fake_run(command, capture_output, text, check):
+        captured["command"] = command
+        captured["capture_output"] = capture_output
+        captured["text"] = text
+        captured["check"] = check
+        return types.SimpleNamespace(
+            stdout=json.dumps(
+                {
+                    "streams": [
+                        {
+                            "index": 4,
+                            "codec_name": "aac",
+                            "channels": 6,
+                            "sample_rate": "48000",
+                            "tags": {"language": "jpn", "title": "Main"},
+                        },
+                        {"tags": {"language": "eng"}},
+                    ]
+                }
+            )
+        )
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    streams = cli.detect_audio_streams(movie_file, ffprobe_path)
+
+    assert captured == {
+        "command": [
+            str(ffprobe_path),
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_streams",
+            "-select_streams",
+            "a",
+            str(movie_file),
+        ],
+        "capture_output": True,
+        "text": True,
+        "check": True,
+    }
+    assert streams == [
+        {
+            "index": 0,
+            "codec_name": "aac",
+            "channels": 6,
+            "sample_rate": "48000",
+            "language": "jpn",
+            "title": "Main",
+            "stream_index": 4,
+        },
+        {
+            "index": 1,
+            "codec_name": "unknown",
+            "channels": 0,
+            "sample_rate": 0,
+            "language": "eng",
+            "title": "",
+            "stream_index": 1,
+        },
+    ]
+
+
+def test_detect_audio_streams_falls_back_on_ffprobe_error(monkeypatch, tmp_path, capsys):
+    movie_file = tmp_path / "movie.mkv"
+    ffprobe_path = tmp_path / "ffprobe"
+    movie_file.write_text("", encoding="utf-8")
+    ffprobe_path.write_text("", encoding="utf-8")
+    ffprobe_path.chmod(0o755)
+
+    def fake_run(*_args, **_kwargs):
+        raise cli.subprocess.CalledProcessError(1, "ffprobe")
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    streams = cli.detect_audio_streams(movie_file, ffprobe_path)
+
+    assert streams == [{"index": 0, "language": "unknown", "channels": 2, "stream_index": 0}]
+    assert "Could not detect audio streams" in capsys.readouterr().out
+
+
+def test_detect_audio_streams_falls_back_on_invalid_json(monkeypatch, tmp_path, capsys):
+    movie_file = tmp_path / "movie.mkv"
+    ffprobe_path = tmp_path / "ffprobe"
+    movie_file.write_text("", encoding="utf-8")
+    ffprobe_path.write_text("", encoding="utf-8")
+    ffprobe_path.chmod(0o755)
+
+    monkeypatch.setattr(
+        cli.subprocess,
+        "run",
+        lambda *_args, **_kwargs: types.SimpleNamespace(stdout="{invalid-json"),
+    )
+
+    streams = cli.detect_audio_streams(movie_file, ffprobe_path)
+
+    assert streams == [{"index": 0, "language": "unknown", "channels": 2, "stream_index": 0}]
+    assert "Could not detect audio streams" in capsys.readouterr().out
 
 
 def test_default_directories_prefers_existing_home(monkeypatch, tmp_path):
