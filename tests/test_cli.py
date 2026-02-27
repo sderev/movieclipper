@@ -70,6 +70,74 @@ def test_read_config_creates_missing_clips_dir(tmp_path):
     assert config.directories.clips_dir == clips_dir
 
 
+def test_load_config_runs_setup_when_config_missing(monkeypatch, tmp_path):
+    expected = make_config(tmp_path)
+    config_path = tmp_path / "missing.toml"
+
+    monkeypatch.setattr(cli, "get_config_path", lambda: config_path)
+    monkeypatch.setattr(cli, "setup_config", lambda: expected)
+    monkeypatch.setattr(cli, "read_config", lambda *_args, **_kwargs: None)
+
+    assert cli.load_config() is expected
+
+
+def test_load_config_runs_setup_when_config_is_invalid(monkeypatch, tmp_path):
+    config_path = tmp_path / "movieclipper.toml"
+    config_path.write_text("bad = [", encoding="utf-8")
+    expected = make_config(tmp_path)
+    messages = []
+
+    def fake_read_config(_config_path):
+        raise cli.tomllib.TOMLDecodeError("Invalid value", "bad = [", 7)
+
+    def fake_print(*args, **_kwargs):
+        messages.append(" ".join(str(arg) for arg in args))
+
+    monkeypatch.setattr(cli, "get_config_path", lambda: config_path)
+    monkeypatch.setattr(cli, "read_config", fake_read_config)
+    monkeypatch.setattr(cli, "setup_config", lambda: expected)
+    monkeypatch.setattr(cli.console, "print", fake_print)
+
+    assert cli.load_config() is expected
+    assert any("Running setup again" in message for message in messages)
+
+
+def test_setup_config_exits_when_movies_dir_missing_and_not_created(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "missing-movies"
+    clips_dir = tmp_path / "clips"
+
+    monkeypatch.setattr(cli, "default_directories", lambda: (movies_dir, clips_dir))
+    monkeypatch.setattr(cli.Prompt, "ask", lambda *_args, **_kwargs: str(movies_dir))
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *_args, **_kwargs: False)
+
+    with pytest.raises(SystemExit, match="1"):
+        cli.setup_config()
+
+
+def test_setup_config_creates_missing_movies_dir_when_confirmed(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    prompts = iter([str(movies_dir), str(clips_dir)])
+    saved = {}
+
+    monkeypatch.setattr(cli, "default_directories", lambda: (movies_dir, clips_dir))
+    monkeypatch.setattr(cli.Prompt, "ask", lambda *_args, **_kwargs: next(prompts))
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *_args, **_kwargs: True)
+
+    def fake_save_config(config_value):
+        saved["config"] = config_value
+
+    monkeypatch.setattr(cli, "save_config", fake_save_config)
+
+    config_value = cli.setup_config()
+
+    assert movies_dir.is_dir()
+    assert clips_dir.is_dir()
+    assert config_value.directories.movies_dir == movies_dir
+    assert config_value.directories.clips_dir == clips_dir
+    assert saved["config"] == config_value
+
+
 def test_validate_movies_dir_rejects_unreadable(tmp_path):
     movies_dir = tmp_path / "movies"
     clips_dir = tmp_path / "clips"
@@ -650,6 +718,49 @@ def test_select_movie_file_skips_refresh_when_cache_disabled(monkeypatch, tmp_pa
     assert calls == [False]
 
 
+def test_select_movie_file_prompts_until_selection_is_valid(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    movie_a = config.directories.movies_dir / "A" / "alpha.mkv"
+    movie_b = config.directories.movies_dir / "B" / "beta.mkv"
+    movie_a.parent.mkdir()
+    movie_b.parent.mkdir()
+    movie_a.write_text("data", encoding="utf-8")
+    movie_b.write_text("data", encoding="utf-8")
+    prompts = iter(["hello", "3", "2"])
+    messages = []
+
+    def fake_find_movie_files(*_args, include_cache_source=False, **_kwargs):
+        if include_cache_source:
+            return [movie_a, movie_b], False
+        return [movie_a, movie_b]
+
+    def fake_print(*args, **_kwargs):
+        messages.append(" ".join(str(arg) for arg in args))
+
+    monkeypatch.setattr(cli, "find_movie_files", fake_find_movie_files)
+    monkeypatch.setattr(
+        cli,
+        "fuzzy_match_movie",
+        lambda _query, _movie_files: [(movie_a, 80.0), (movie_b, 79.0)],
+    )
+    monkeypatch.setattr(cli.Prompt, "ask", lambda *_args, **_kwargs: next(prompts))
+    monkeypatch.setattr(cli.console, "print", fake_print)
+
+    selected = cli.select_movie_file("movie", config)
+
+    assert selected == movie_b
+    assert any("Please enter a number" in message for message in messages)
+    assert any("Invalid selection" in message for message in messages)
+
+
+def test_main_requires_movie_input():
+    runner = CliRunner()
+    result = runner.invoke(cli.main, [])
+
+    assert result.exit_code == 1
+    assert "Movie input is required" in result.output
+
+
 def test_main_uses_config_default_for_preserve_audio(monkeypatch, tmp_path):
     movies_dir = tmp_path / "movies"
     clips_dir = tmp_path / "clips"
@@ -710,6 +821,75 @@ def test_main_uses_config_default_for_preserve_audio(monkeypatch, tmp_path):
 
     assert result.exit_code == 0
     assert captured["preserve_audio"] is True
+
+
+def test_main_exits_on_invalid_time_input(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    movie_file = config.directories.movies_dir / "movie.mkv"
+    movie_file.write_text("data", encoding="utf-8")
+
+    monkeypatch.setattr(
+        cli,
+        "check_ffmpeg",
+        lambda *_args, **_kwargs: cli.FfmpegTools(ffmpeg=Path("/usr/bin/ffmpeg"), ffprobe=None),
+    )
+    monkeypatch.setattr(cli, "load_config", lambda: config)
+    monkeypatch.setattr(cli, "select_movie_file", lambda *_args, **_kwargs: movie_file)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.main,
+        [
+            "--start",
+            "not-a-time",
+            "--duration",
+            "10",
+            "movie.mkv",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Time parsing error" in result.output
+
+
+def test_main_exits_when_ffmpeg_execution_fails(monkeypatch, tmp_path):
+    config = make_config(tmp_path)
+    movie_file = config.directories.movies_dir / "movie.mkv"
+    movie_file.write_text("data", encoding="utf-8")
+    command = ["ffmpeg", "-i", "movie.mkv"]
+    captured = {}
+
+    monkeypatch.setattr(
+        cli,
+        "check_ffmpeg",
+        lambda *_args, **_kwargs: cli.FfmpegTools(ffmpeg=Path("/usr/bin/ffmpeg"), ffprobe=None),
+    )
+    monkeypatch.setattr(cli, "load_config", lambda: config)
+    monkeypatch.setattr(cli, "select_movie_file", lambda *_args, **_kwargs: movie_file)
+    monkeypatch.setattr(cli, "build_ffmpeg_command", lambda *_args, **_kwargs: command)
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *_args, **_kwargs: True)
+
+    def fake_execute_ffmpeg(command_value):
+        captured["command"] = command_value
+        return False
+
+    monkeypatch.setattr(cli, "execute_ffmpeg", fake_execute_ffmpeg)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.main,
+        [
+            "--start",
+            "0",
+            "--duration",
+            "10",
+            "movie.mkv",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Failed to create clip." in result.output
+    assert captured["command"] == command
 
 
 def test_main_refresh_cache_rebuilds_when_disabled(monkeypatch, tmp_path):
