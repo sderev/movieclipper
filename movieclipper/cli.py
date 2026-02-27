@@ -136,10 +136,45 @@ def load_config() -> Config:
         return setup_config()
 
 
+def _is_wsl() -> bool:
+    """Return ``True`` when running inside Windows Subsystem for Linux."""
+    try:
+        return "microsoft" in Path("/proc/version").read_text().lower()
+    except (FileNotFoundError, OSError):
+        return False
+
+
+def _get_windows_home() -> Optional[Path]:
+    """Resolve the Windows user home as a WSL path (e.g. ``/mnt/c/Users/Name``)."""
+    try:
+        result = subprocess.run(
+            ["cmd.exe", "/c", "echo", "%USERPROFILE%"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        profile = result.stdout.strip()
+        if not profile or "%" in profile:
+            return None
+        match = re.match(r"([A-Za-z]):\\(.*)", profile)
+        if not match:
+            return None
+        drive = match.group(1).lower()
+        rest = match.group(2).replace("\\", "/")
+        return Path(f"/mnt/{drive}/{rest}")
+    except Exception:
+        return None
+
+
 def default_directories() -> Tuple[Path, Path]:
     home = Path.home()
-    candidates = [home / "Videos", home / "Movies"]
-    movies_root = next((path for path in candidates if path.exists()), None)
+    candidates: list[Path] = []
+    if _is_wsl():
+        win_home = _get_windows_home()
+        if win_home:
+            candidates.extend([win_home / "Videos", win_home / "Movies"])
+    candidates.extend([home / "Videos", home / "Movies"])
+    movies_root = next((p for p in candidates if p.exists()), None)
     if movies_root is None:
         movies_root = Path.cwd()
     clips_root = movies_root / "clips"
