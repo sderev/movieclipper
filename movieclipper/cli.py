@@ -950,6 +950,14 @@ def main(
 
     if setup:
         setup_config()
+        ffmpeg_resolved = shutil.which("ffmpeg")
+        if ffmpeg_resolved is None:
+            ffmpeg_resolved = _resolve_imageio_ffmpeg()
+        if not ffmpeg_resolved:
+            console.print(
+                "[yellow]Warning: ffmpeg not found. "
+                "Install ffmpeg or use movieclipper[ffmpeg] before clipping.[/yellow]"
+            )
         return
 
     if refresh_cache:

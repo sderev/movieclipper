@@ -713,3 +713,48 @@ def test_version_flag():
     result = runner.invoke(cli.main, ["--version"])
     assert result.exit_code == 0
     assert "movieclipper" in result.output
+
+
+def test_setup_warns_when_ffmpeg_missing(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+
+    monkeypatch.setattr(
+        cli,
+        "setup_config",
+        lambda: cli.Config(
+            directories=cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir),
+        ),
+    )
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cli, "_resolve_imageio_ffmpeg", lambda: None)
+
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--setup"])
+
+    assert result.exit_code == 0
+    assert "ffmpeg not found" in result.output
+
+
+def test_setup_no_warning_when_ffmpeg_present(monkeypatch, tmp_path):
+    movies_dir = tmp_path / "movies"
+    clips_dir = tmp_path / "clips"
+    movies_dir.mkdir()
+    clips_dir.mkdir()
+
+    monkeypatch.setattr(
+        cli,
+        "setup_config",
+        lambda: cli.Config(
+            directories=cli.DirectoryConfig(movies_dir=movies_dir, clips_dir=clips_dir),
+        ),
+    )
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: "/usr/bin/ffmpeg")
+
+    runner = CliRunner()
+    result = runner.invoke(cli.main, ["--setup"])
+
+    assert result.exit_code == 0
+    assert "ffmpeg not found" not in result.output
